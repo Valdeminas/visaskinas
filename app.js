@@ -117,48 +117,191 @@ async function getAllMovies(selectedDate) {
   return results.flat();
 }
 
+let selectedTitles = []; // global state to preserve across renders
+let searchText = "";     // global search text
+
 // ---------- Render Table ----------
 function renderTable(movies) {
-  const table = document.getElementById("moviesTable");
-  table.innerHTML = `
-      <tr>
-          <th>Title</th>
-          <th>Time</th>
-          <th>Cinema</th>
-      </tr>
-  `;
+  const tbody = document.getElementById("moviesTableBody");
+  tbody.innerHTML = ""; // only clear rows, not header
 
-  if (movies.length === 0) {
-    // If no movies, display a single row spanning all columns
+  // --- FILTER MOVIES ---
+  let filteredMovies = selectedTitles.length > 0 
+    ? movies.filter(m => selectedTitles.includes(m.title)) 
+    : movies;
+
+  if (filteredMovies.length === 0) {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td colspan="3" style="text-align:center; font-weight:bold; color:#555;">
                         No movies found 😢
                     </td>`;
-    table.appendChild(tr);
+    tbody.appendChild(tr);
     return;
   }
 
-  movies
-  .sort((a, b) => a.time - b.time)
-  .forEach(movie => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-              <td>${movie.title}</td>
-              <td>${movie.time.toLocaleTimeString('lt-LT', { hour: '2-digit', minute: '2-digit' })}</td>
-              <td>${movie.cinema}</td>
-          `;
-          tr.addEventListener("click", () => {
-              window.open(movie.url, "_blank");
-          });
-          table.appendChild(tr);
+  filteredMovies
+    .sort((a, b) => a.time - b.time)
+    .forEach(movie => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+          <td>${movie.title}</td>
+          <td>${movie.time.toLocaleTimeString('lt-LT', { hour: '2-digit', minute: '2-digit' })}</td>
+          <td>${movie.cinema}</td>
+      `;
+      tr.addEventListener("click", () => {
+          window.open(movie.url, "_blank");
       });
+      tbody.appendChild(tr);
+  });
 }
+
+// ---------- Initialize Header Dropdown ----------
+function initHeaderDropdown(movies) {
+  const thead = document.getElementById("moviesTableHeader");
+  thead.innerHTML = ""; // just header
+
+  const header = document.createElement("tr");
+
+  const thTitle = document.createElement("th");
+  thTitle.textContent = "Title";
+  thTitle.style.cursor = "pointer";
+  thTitle.style.position = "relative";
+
+  const thTime = document.createElement("th");
+  thTime.textContent = "Time";
+  const thCinema = document.createElement("th");
+  thCinema.textContent = "Cinema";
+
+  header.appendChild(thTitle);
+  header.appendChild(thTime);
+  header.appendChild(thCinema);
+  thead.appendChild(header);
+
+  const dropdown = document.createElement("div");
+  dropdown.id = "titleDropdown";
+  dropdown.style.position = "absolute";
+  dropdown.style.top = "100%";
+  dropdown.style.left = "0";
+  dropdown.style.background = "#fff";
+  dropdown.style.border = "1px solid #ccc";
+  dropdown.style.padding = "5px";
+  dropdown.style.display = "none";
+  dropdown.style.maxHeight = "200px";
+  dropdown.style.overflowY = "auto";
+  dropdown.style.zIndex = "1000";
+  dropdown.style.minWidth = "180px";
+  dropdown.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+
+  // --- Controls (Clear All + Show Selected) ---
+  const controls = document.createElement("div");
+  controls.style.display = "flex";
+  controls.style.justifyContent = "space-between";
+  controls.style.marginBottom = "5px";
+
+  const clearAllBtn = document.createElement("button");
+  clearAllBtn.textContent = "Clear All";
+  clearAllBtn.addEventListener("click", () => {
+    searchText = "";
+    searchInput.value = "";
+    selectedTitles = [];
+    renderTable(movies);
+    renderCheckboxes();
+  });
+
+  controls.appendChild(clearAllBtn);
+
+  // --- Search input ---
+  const searchInput = document.createElement("input");
+  searchInput.type = "text";
+  searchInput.placeholder = "Search title...";
+  searchInput.style.width = "95%";
+  searchInput.style.marginBottom = "5px";
+  searchInput.value = searchText;
+
+  dropdown.appendChild(controls);
+  dropdown.appendChild(searchInput);
+
+  const uniqueTitles = [...new Set(movies.map(m => m.title))];
+  let showSelectedOnly = false;
+
+  function renderCheckboxes() {
+    // remove old checkboxes
+    Array.from(dropdown.querySelectorAll("label")).forEach(el => el.remove());
+
+    const query = searchInput.value.toLowerCase();
+
+    let titlesToRender = [...uniqueTitles];
+      titlesToRender = titlesToRender.filter(
+        t => t.toLowerCase().includes(query) || selectedTitles.includes(t)
+      );
+
+    titlesToRender.forEach(title => {
+      const label = document.createElement("label");
+      label.style.display = "block";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = title;
+      checkbox.checked = selectedTitles.includes(title);
+
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked && !selectedTitles.includes(title)) {
+          selectedTitles.push(title);
+        } else {
+          selectedTitles = selectedTitles.filter(t => t !== title);
+        }
+        renderTable(movies);
+        renderCheckboxes(); // refresh checkboxes
+      });
+
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(" " + title));
+      dropdown.appendChild(label);
+    });
+  }
+
+  renderCheckboxes();
+
+  // --- Keep dropdown open when dragging/selecting ---
+  let isDragging = false;
+  searchInput.addEventListener("mousedown", () => { isDragging = true; });
+  document.addEventListener("mouseup", () => { setTimeout(() => isDragging = false, 0); });
+
+  searchInput.addEventListener("input", () => {
+    searchText = searchInput.value;
+    renderCheckboxes();
+  });
+
+  thTitle.appendChild(dropdown);
+
+  // Toggle dropdown on header click
+  thTitle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willShow = dropdown.style.display === "none";
+    dropdown.style.display = willShow ? "block" : "none";
+    if (willShow) {
+      setTimeout(() => searchInput.focus(), 0);
+    }
+  });
+
+  dropdown.addEventListener("click", (e) => e.stopPropagation());
+
+  document.addEventListener("click", (e) => {
+    if (isDragging) return;
+    if (!dropdown.contains(e.target) && e.target !== thTitle) {
+      dropdown.style.display = "none";
+    }
+  });
+}
+
+
 
 // ---------- Initialize ----------
 async function init() {
   const dateInput = document.getElementById("datePicker");
   const selectedDate = dateInput.value ? new Date(dateInput.value) : new Date();
   const movies = await getAllMovies(selectedDate);
+  initHeaderDropdown(movies);
   renderTable(movies);
 }
 
