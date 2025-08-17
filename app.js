@@ -26,7 +26,7 @@ async function parseForumLike(cinemaRoot,date,theatreId) {
           title: show.Title || "",
           time: new Date(show.dttmShowStart),
           cinema: show.Theatre || "",
-          url: show.EventURL || ""
+          url: show.ShowURL || ""
       };
       })
       .filter(show => show.time > now); // only future shows
@@ -92,10 +92,10 @@ const selectedDay = selectedDate.getDate();
   const movies = shows.map(show => {
     const event = eventMap[show.eventid];
     return {
-      title: event.title_originalo_kalba,
+      title: event.title,
       time: new Date(show.start_date*1000),
       cinema: 'Skalvija',
-      url: 'www.skalvija.lt'+event.link+`?show=${show.id}`
+      url: 'https://www.skalvija.lt'+event.link+`?show=${show._id}`
   };
   })
   .filter(show => show.time.getFullYear() == selectedYear && show.time.getMonth() == selectedMonth && show.time.getDate() == selectedDay)
@@ -127,6 +127,16 @@ function renderTable(movies) {
           <th>Cinema</th>
       </tr>
   `;
+
+  if (movies.length === 0) {
+    // If no movies, display a single row spanning all columns
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="3" style="text-align:center; font-weight:bold; color:#555;">
+                        No movies found 😢
+                    </td>`;
+    table.appendChild(tr);
+    return;
+  }
 
   movies
   .sort((a, b) => a.time - b.time)
