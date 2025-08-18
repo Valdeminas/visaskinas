@@ -145,6 +145,9 @@ let cinemaSearchText = ""; // cinema search text
 let allKnownTitles = new Set();
 let allKnownCinemas = new Set();
 let currentMovies = []; // keep latest movies for header reinit on resize
+// Keep references to dropdown instances to refresh their UI on external changes
+let titleDropdownInstance = null;
+let cinemaDropdownInstance = null;
 
 // One-time titles prefetch across upcoming days
 let titlesPrefetchDone = false;
@@ -166,7 +169,10 @@ async function prefetchKnownTitles(days = 7) {
     const perDayMovies = await Promise.all(
       dates.map(d => getAllMovies(d).catch(() => []))
     );
-    perDayMovies.flat().forEach(m => allKnownTitles.add(m.title));
+    perDayMovies.flat().forEach(m => { 
+      allKnownTitles.add(m.title);
+      allKnownCinemas.add(m.cinema);
+    });
   } catch (e) {
     // swallow prefetch errors; UI will still work with partial options
   }
@@ -181,84 +187,22 @@ async function ensureTitlesPrefetched() {
   await titlesPrefetchPromise;
 }
 
-// Mobile mode state and swipe handling
+// Remove swipe/top bar; use bottom toggle instead
 let mobileMode = 'browse'; // 'browse' | 'buy'
-let touchStartX = null;
-let touchStartY = null;
 function setMobileMode(mode) {
   mobileMode = mode;
-  renderMobileModeBar();
+  updateMobileModeToggle();
   if (currentMovies) renderTable(currentMovies);
 }
-function renderMobileModeBar() {
-  const bar = document.getElementById('mobileModeBar');
-  if (!bar) return;
+function updateMobileModeToggle() {
+  const btn = document.getElementById('mobileModeToggle');
+  if (!btn) return;
   if (!isMobileView()) {
-    bar.style.display = 'none';
+    btn.style.display = 'none';
     return;
   }
-  bar.style.display = 'block';
-  bar.innerHTML = '';
-
-  const container = document.createElement('div');
-  container.style.display = 'flex';
-  container.style.justifyContent = 'space-between';
-  container.style.alignItems = 'center';
-
-  const left = document.createElement('div');
-  const browseBtn = document.createElement('button');
-  browseBtn.textContent = 'Browse';
-  browseBtn.disabled = mobileMode === 'browse';
-  const buyBtn = document.createElement('button');
-  buyBtn.textContent = 'Buy';
-  buyBtn.disabled = mobileMode === 'buy';
-  browseBtn.addEventListener('click', () => setMobileMode('browse'));
-  buyBtn.addEventListener('click', () => setMobileMode('buy'));
-  left.appendChild(browseBtn);
-  left.appendChild(document.createTextNode(' '));
-  left.appendChild(buyBtn);
-
-  const right = document.createElement('div');
-  const clearBtn = document.createElement('button');
-  clearBtn.textContent = 'Clear';
-  clearBtn.addEventListener('click', () => {
-    selectedTitles = [];
-    selectedCinemas = [];
-    renderTable(currentMovies || []);
-  });
-  right.appendChild(clearBtn);
-
-  container.appendChild(left);
-  container.appendChild(right);
-  bar.appendChild(container);
-
-  // Swipe hint
-  const hint = document.createElement('div');
-  hint.style.fontSize = '12px';
-  hint.style.color = '#666';
-  hint.style.marginTop = '6px';
-  hint.textContent = 'Swipe left/right to switch modes';
-  bar.appendChild(hint);
-}
-
-function attachSwipeHandlers(root) {
-  if (!root) return;
-  root.addEventListener('touchstart', (e) => {
-    const t = e.changedTouches[0];
-    touchStartX = t.clientX;
-    touchStartY = t.clientY;
-  }, { passive: true });
-  root.addEventListener('touchend', (e) => {
-    if (touchStartX === null) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchStartX;
-    const dy = t.clientY - touchStartY;
-    touchStartX = null; touchStartY = null;
-    if (Math.abs(dx) > 50 && Math.abs(dy) < 30) {
-      if (dx < 0 && mobileMode !== 'buy') setMobileMode('buy');
-      else if (dx > 0 && mobileMode !== 'browse') setMobileMode('browse');
-    }
-  }, { passive: true });
+  btn.style.display = 'inline-block';
+  btn.textContent = mobileMode === 'browse' ? 'Go to Buy' : 'Go to Browse';
 }
 
 // ---------- Render Table ----------
@@ -269,12 +213,17 @@ function renderTable(movies) {
   const selectedBox = document.getElementById("selectedContainer");
   if (selectedBox) selectedBox.innerHTML = "";
 
-  renderMobileModeBar();
-  attachSwipeHandlers(document.body);
+  updateMobileModeToggle();
 
   // --- FILTER MOVIES ---
   let filteredMovies = movies;
-  if (!isMobileView()) {
+  if (isMobileView()) {
+    // On mobile, cinemas narrow the list; titles are shown as sticky picks but do not filter browse list
+    if (selectedCinemas.length > 0) {
+      filteredMovies = filteredMovies.filter(m => selectedCinemas.includes(m.cinema));
+    }
+  } else {
+    // Desktop: both filters apply to the table
     if (selectedTitles.length > 0) {
       filteredMovies = filteredMovies.filter(m => selectedTitles.includes(m.title));
     }
@@ -297,9 +246,8 @@ function renderTable(movies) {
   let moviesToRender = filteredMovies
     .sort((a, b) => a.time - b.time);
 
-  // Mobile: buy mode shows only selected; browse mode shows all with sticky selected table
   if (isMobileView()) {
-    const selectedMovies = moviesToRender.filter(m => selectedTitles.includes(m.title) || selectedCinemas.includes(m.cinema));
+    const selectedMovies = moviesToRender.filter(m => selectedTitles.includes(m.title));
     const unselectedMovies = moviesToRender.filter(m => !selectedMovies.includes(m));
 
     if (mobileMode === 'buy') {
@@ -317,7 +265,7 @@ function renderTable(movies) {
       return;
     }
 
-    // browse mode: sticky table for selected, main table for unselected
+    // browse mode: sticky selected table above, list below
     if (selectedBox) {
       selectedBox.style.display = selectedMovies.length > 0 ? 'block' : 'none';
       if (selectedMovies.length > 0) {
@@ -401,6 +349,9 @@ function buildMovieRow(movies, movie) {
       selectedCinemas = selectedCinemas.filter(c => c !== movie.cinema);
     }
     renderTable(movies);
+    if (cinemaDropdownInstance && cinemaDropdownInstance.render) {
+      cinemaDropdownInstance.render();
+    }
   });
   cinemaTd.appendChild(cinemaCheckbox);
   cinemaTd.appendChild(document.createTextNode(" " + movie.cinema));
@@ -418,7 +369,7 @@ function buildMovieRow(movies, movie) {
 }
 
 // Reusable checkbox filter dropdown
-function createCheckboxFilterDropdown({ items, getSelected, setSelected, getSearchText, setSearchText, placeholder, emptyText, onChange }) {
+function createCheckboxFilterDropdown({ items, getSelected, setSelected, getSearchText, setSearchText, placeholder, emptyText, onChange, showSearch = true, listMode = 'selectedOnlyDefault' }) {
   const dropdown = document.createElement("div");
   dropdown.style.position = "absolute";
   dropdown.style.top = "100%";
@@ -427,10 +378,10 @@ function createCheckboxFilterDropdown({ items, getSelected, setSelected, getSear
   dropdown.style.border = "1px solid #ccc";
   dropdown.style.padding = "5px";
   dropdown.style.display = "none";
-  dropdown.style.maxHeight = "200px";
+  dropdown.style.maxHeight = "240px";
   dropdown.style.overflowY = "auto";
   dropdown.style.zIndex = "1000";
-  dropdown.style.minWidth = "180px";
+  dropdown.style.minWidth = "200px";
   dropdown.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
 
   const controls = document.createElement("div");
@@ -441,38 +392,56 @@ function createCheckboxFilterDropdown({ items, getSelected, setSelected, getSear
   const clearAllBtn = document.createElement("button");
   clearAllBtn.textContent = "Clear All";
   clearAllBtn.addEventListener("click", () => {
-    setSearchText("");
-    searchInput.value = "";
+    if (showSearch) {
+      setSearchText("");
+      searchInput.value = "";
+    }
     setSelected([]);
     onChange();
     renderCheckboxes();
   });
   controls.appendChild(clearAllBtn);
 
-  const searchInput = document.createElement("input");
-  searchInput.type = "text";
-  searchInput.placeholder = placeholder;
-  searchInput.style.width = "95%";
-  searchInput.style.marginBottom = "5px";
-  searchInput.value = getSearchText();
+  let searchInput = null;
+  if (showSearch) {
+    searchInput = document.createElement("input");
+    searchInput.type = "text";
+    searchInput.placeholder = placeholder;
+    searchInput.style.width = "95%";
+    searchInput.style.marginBottom = "5px";
+    searchInput.value = getSearchText();
+  }
 
   dropdown.appendChild(controls);
-  dropdown.appendChild(searchInput);
+  if (showSearch && searchInput) dropdown.appendChild(searchInput);
 
   function renderCheckboxes() {
     Array.from(dropdown.querySelectorAll("label, .empty-msg")).forEach(el => el.remove());
 
-    const query = searchInput.value.toLowerCase();
+    const query = (showSearch && searchInput) ? searchInput.value.toLowerCase() : "";
     const allItems = items();
     const selected = getSelected();
 
-    let itemsToRender = [...allItems];
-    if (!query) {
-      itemsToRender = itemsToRender.filter(v => selected.includes(v));
+    let itemsToRender;
+    if (listMode === 'allWithSelectedFirst') {
+      itemsToRender = [...allItems]
+        .sort((a, b) => {
+          const aSel = selected.includes(a);
+          const bSel = selected.includes(b);
+          if (aSel && !bSel) return -1;
+          if (!aSel && bSel) return 1;
+          return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
+        });
     } else {
-      itemsToRender = itemsToRender.filter(
-        v => v.toLowerCase().includes(query) || selected.includes(v)
-      );
+      // selectedOnlyDefault
+      itemsToRender = [...allItems];
+      if (!query) {
+        itemsToRender = itemsToRender.filter(v => selected.includes(v));
+      } else {
+        itemsToRender = itemsToRender.filter(
+          v => String(v).toLowerCase().includes(query) || selected.includes(v)
+        );
+      }
     }
 
     if (itemsToRender.length === 0) {
@@ -513,13 +482,14 @@ function createCheckboxFilterDropdown({ items, getSelected, setSelected, getSear
   }
 
   let isDragging = false;
-  searchInput.addEventListener("mousedown", () => { isDragging = true; });
-  document.addEventListener("mouseup", () => { setTimeout(() => isDragging = false, 0); });
-
-  searchInput.addEventListener("input", () => {
-    setSearchText(searchInput.value);
-    renderCheckboxes();
-  });
+  if (showSearch && searchInput) {
+    searchInput.addEventListener("mousedown", () => { isDragging = true; });
+    document.addEventListener("mouseup", () => { setTimeout(() => isDragging = false, 0); });
+    searchInput.addEventListener("input", () => {
+      setSearchText(searchInput.value);
+      renderCheckboxes();
+    });
+  }
 
   renderCheckboxes();
 
@@ -528,10 +498,12 @@ function createCheckboxFilterDropdown({ items, getSelected, setSelected, getSear
     searchInput,
     render: renderCheckboxes,
     open: () => {
-      setSearchText("");
-      searchInput.value = "";
-      renderCheckboxes();
-      setTimeout(() => searchInput.focus(), 0);
+      if (showSearch && searchInput) {
+        setSearchText("");
+        searchInput.value = "";
+        renderCheckboxes();
+        setTimeout(() => searchInput.focus(), 0);
+      }
     },
     isDragging: () => isDragging,
   };
@@ -562,7 +534,43 @@ function initHeaderDropdown(movies) {
   header.appendChild(thCinema);
   thead.appendChild(header);
 
-  // Desktop-only: show icons and dropdowns
+  // Always allow Cinema dropdown (mobile + desktop)
+  const cinemaIcon = document.createElement("span");
+  cinemaIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>';
+  cinemaIcon.style.marginLeft = "6px";
+  cinemaIcon.style.verticalAlign = "middle";
+  cinemaIcon.style.color = "#666";
+  thCinema.appendChild(cinemaIcon);
+
+  const cinemaDropdown = createCheckboxFilterDropdown({
+    items: () => Array.from(allKnownCinemas),
+    getSelected: () => selectedCinemas,
+    setSelected: (next) => { selectedCinemas = next; },
+    getSearchText: () => cinemaSearchText,
+    setSearchText: (v) => { cinemaSearchText = v; },
+    placeholder: "Search cinema...",
+    emptyText: "No cinemas",
+    onChange: () => renderTable(movies),
+    showSearch: false,
+    listMode: 'allWithSelectedFirst',
+  });
+  thCinema.appendChild(cinemaDropdown.container);
+  thCinema.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willShow = cinemaDropdown.container.style.display === "none";
+    cinemaDropdown.container.style.display = willShow ? "block" : "none";
+    if (willShow) cinemaDropdown.open();
+  });
+  cinemaDropdown.container.addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", (e) => {
+    if (cinemaDropdown.isDragging()) return;
+    if (!cinemaDropdown.container.contains(e.target) && e.target !== thCinema) {
+      cinemaDropdown.container.style.display = "none";
+    }
+  });
+  cinemaDropdownInstance = cinemaDropdown; // Assign instance
+
+  // Desktop-only: Title dropdown remains
   if (!isMobileView()) {
     const titleIcon = document.createElement("span");
     titleIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>';
@@ -571,14 +579,6 @@ function initHeaderDropdown(movies) {
     titleIcon.style.color = "#666";
     thTitle.appendChild(titleIcon);
 
-    const cinemaIcon = document.createElement("span");
-    cinemaIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>';
-    cinemaIcon.style.marginLeft = "6px";
-    cinemaIcon.style.verticalAlign = "middle";
-    cinemaIcon.style.color = "#666";
-    thCinema.appendChild(cinemaIcon);
-
-    // Title dropdown
     const titleDropdown = createCheckboxFilterDropdown({
       items: () => Array.from(allKnownTitles),
       getSelected: () => selectedTitles,
@@ -588,16 +588,15 @@ function initHeaderDropdown(movies) {
       placeholder: "Search title...",
       emptyText: "No selected titles",
       onChange: () => renderTable(movies),
+      showSearch: true,
+      listMode: 'selectedOnlyDefault',
     });
     thTitle.appendChild(titleDropdown.container);
-
     thTitle.addEventListener("click", (e) => {
       e.stopPropagation();
       const willShow = titleDropdown.container.style.display === "none";
       titleDropdown.container.style.display = willShow ? "block" : "none";
-      if (willShow) {
-        titleDropdown.open();
-      }
+      if (willShow) titleDropdown.open();
     });
     titleDropdown.container.addEventListener("click", (e) => e.stopPropagation());
     document.addEventListener("click", (e) => {
@@ -606,38 +605,17 @@ function initHeaderDropdown(movies) {
         titleDropdown.container.style.display = "none";
       }
     });
-
-    // Cinema dropdown
-    const cinemaDropdown = createCheckboxFilterDropdown({
-      items: () => Array.from(allKnownCinemas),
-      getSelected: () => selectedCinemas,
-      setSelected: (next) => { selectedCinemas = next; },
-      getSearchText: () => cinemaSearchText,
-      setSearchText: (v) => { cinemaSearchText = v; },
-      placeholder: "Search cinema...",
-      emptyText: "No selected cinemas",
-      onChange: () => renderTable(movies),
-    });
-    thCinema.appendChild(cinemaDropdown.container);
-
-    thCinema.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const willShow = cinemaDropdown.container.style.display === "none";
-      cinemaDropdown.container.style.display = willShow ? "block" : "none";
-      if (willShow) {
-        cinemaDropdown.open();
-      }
-    });
-    cinemaDropdown.container.addEventListener("click", (e) => e.stopPropagation());
-    document.addEventListener("click", (e) => {
-      if (cinemaDropdown.isDragging()) return;
-      if (!cinemaDropdown.container.contains(e.target) && e.target !== thCinema) {
-        cinemaDropdown.container.style.display = "none";
-      }
-    });
+    titleDropdownInstance = titleDropdown; // Assign instance
   }
 }
 
+// Hook up bottom mode toggle
+window.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('mobileModeToggle');
+  if (btn) {
+    btn.addEventListener('click', () => setMobileMode(mobileMode === 'browse' ? 'buy' : 'browse'));
+  }
+});
 
 
 // ---------- Initialize ----------
