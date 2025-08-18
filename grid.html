@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vilnius Cinemas - Table View</title>
+    <title>Vilnius Cinemas - Grid View</title>
     <link rel="stylesheet" href="styles/common.css">
-    <link rel="stylesheet" href="styles/table.css">
+    <link rel="stylesheet" href="styles/grid.css">
     <link rel="stylesheet" href="styles/dropdown.css">
     <link rel="stylesheet" href="styles/loading.css">
 </head>
@@ -14,33 +14,32 @@
 <div id="loadingIndicator" class="loading-indicator">
     <div class="loading-content">
         <div class="loading-spinner"></div>
-        <p class="loading-title">Loading Table View...</p>
+        <p class="loading-title">Loading Grid View...</p>
         <p class="loading-subtitle">Please wait</p>
     </div>
 </div>
 
 <div class="header">
     <h1>🎬 Vilnius Cinemas</h1>
-    <p>Movie listings in organized table view</p>
+    <p>Movie listings in card grid view</p>
 </div>
-
 
 <div class="controls">
     <input type="date" id="datePicker" class="date-picker">
-    <button id="viewGridBtn" class="filter-btn">Grid View</button>
+    <button id="viewTableBtn" class="filter-btn">Table View</button>
 </div>
 
-<div id="mobileModeBar"></div>
-<div id="selectedContainer"></div>
-
-<div class="table-container">
-    <table id="moviesTable">
-        <thead id="moviesTableHeader"></thead>
-        <tbody id="moviesTableBody"></tbody>
-    </table>
+<div class="grid-container" id="moviesGrid">
+    <!-- Grid cards will be rendered here -->
 </div>
 
 
-<script type="module" src="js/app.js"></script>
+<script type="module">
+    // Add table view button functionality
+    document.getElementById('viewTableBtn').addEventListener('click', () => {
+        window.location.href = 'index.html';
+    });
+</script>
+<script type="module" src="js/gridApp.js"></script>
 </body>
 </html>
