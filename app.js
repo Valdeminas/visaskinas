@@ -137,7 +137,11 @@ function renderList(movies) {
 		const close = document.createElement('button');
 		close.className = 'close-btn';
 		close.textContent = '×';
-		close.addEventListener('click', () => { 
+		close.addEventListener('click', (e) => { 
+			// Prevent event bubbling to avoid triggering other card events
+			e.preventDefault();
+			e.stopPropagation();
+			
 			// Add collapsing class for animation
 			card.classList.add('collapsing');
 			
@@ -325,6 +329,7 @@ function addSwipeHandlers(card) {
 		if (e.target.closest('button, a, .more-btn')) return;
 		
 		startX = e.touches[0].clientX;
+		currentX = e.touches[0].clientX; // Initialize currentX to startX to prevent false deltas
 		startTime = Date.now();
 		isDragging = true;
 		card.style.transition = 'none';
@@ -352,8 +357,12 @@ function addSwipeHandlers(card) {
 		const deltaTime = Date.now() - startTime;
 		const velocity = Math.abs(deltaX) / deltaTime;
 		
-		// Determine if swipe should complete or delete
-		if (deltaX < -80) {
+		// Only trigger swipe actions if there was significant movement and time
+		// This prevents accidental triggers from simple taps
+		if (Math.abs(deltaX) < 20 || deltaTime < 150 || deltaX === 0) {
+			// Very small movement, too quick, or no movement - treat as a tap, not a swipe
+			card.classList.remove('swiped');
+		} else if (deltaX < -80) {
 			// Swiped far enough to delete - don't reset transforms
 			card.classList.add('swiped');
 
@@ -379,6 +388,7 @@ function addSwipeHandlers(card) {
 		if (e.target.closest('button, a, .more-btn')) return;
 		
 		startX = e.clientX;
+		currentX = e.clientX; // Initialize currentX to startX to prevent false deltas
 		startTime = Date.now();
 		isDragging = true;
 		card.style.transition = 'none';
@@ -407,8 +417,12 @@ function addSwipeHandlers(card) {
 		const deltaTime = Date.now() - startTime;
 		const velocity = Math.abs(deltaX) / deltaTime;
 		
-		// Determine if swipe should complete or delete
-		if (deltaX < -80) {
+		// Only trigger swipe actions if there was significant movement and time
+		// This prevents accidental triggers from simple clicks
+		if (Math.abs(deltaX) < 20 || deltaTime < 150 || deltaX === 0) {
+			// Very small movement, too quick, or no movement - treat as a click, not a swipe
+			card.classList.remove('swiped');
+		} else if (deltaX < -80) {
 			// Swiped far enough to delete - don't reset transforms
 			card.classList.add('collapsing');
 			setTimeout(() => {
@@ -429,12 +443,8 @@ function addSwipeHandlers(card) {
 		card.querySelector('.card-actions').style.transform = '';
 	});
 	
-	// Reset swipe state when clicking outside
-	document.addEventListener('click', (e) => {
-		if (!card.contains(e.target)) {
-			card.classList.remove('swiped');
-		}
-	});
+	// Remove the click outside handler that was closing cards
+	// Now only X button and left swipe can close cards
 }
 
 window.addEventListener('DOMContentLoaded', init);
