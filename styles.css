@@ -3,11 +3,14 @@ body {
     font-family: system-ui, sans-serif; 
     background:#f6f6f8; 
     color:#111; 
+    touch-action: pan-y;
+    overflow-x: hidden;
 }
 
 /* Content fade transitions */
 .movies-list-container {
     transition: opacity 0.3s ease;
+    touch-action: pan-y;
 }
 
 .movies-list-container.fade-out {

@@ -325,9 +325,12 @@ async function init() {
 // Swipe functionality for cards
 function addSwipeHandlers(card) {
 	let startX = 0;
+	let startY = 0;
 	let currentX = 0;
+	let currentY = 0;
 	let isDragging = false;
 	let startTime = 0;
+	let isHorizontalSwipe = false;
 	
 	// Touch events
 	card.addEventListener('touchstart', (e) => {
@@ -335,22 +338,37 @@ function addSwipeHandlers(card) {
 		if (e.target.closest('button, a, .more-btn')) return;
 		
 		startX = e.touches[0].clientX;
+		startY = e.touches[0].clientY;
 		currentX = e.touches[0].clientX; // Initialize currentX to startX to prevent false deltas
+		currentY = e.touches[0].clientY; // Initialize currentY to startY to prevent false deltas
 		startTime = Date.now();
 		isDragging = true;
+		isHorizontalSwipe = false;
 		card.style.transition = 'none';
 	});
 	
 	card.addEventListener('touchmove', (e) => {
 		if (!isDragging) return;
-		e.preventDefault();
-		currentX = e.touches[0].clientX;
-		const deltaX = currentX - startX;
 		
-		if (deltaX < 0) { // Only allow left swipe
-			const translateX = Math.max(deltaX, -80);
-			card.querySelector('.card-content').style.transform = `translateX(${translateX}px)`;
-			card.querySelector('.card-actions').style.transform = `translateX(${translateX + 80}px)`;
+		currentX = e.touches[0].clientX;
+		currentY = e.touches[0].clientY;
+		const deltaX = currentX - startX;
+		const deltaY = currentY - startY;
+		
+		// Determine if this is a horizontal swipe (only after some movement)
+		if (!isHorizontalSwipe && Math.abs(deltaX) > 10) {
+			isHorizontalSwipe = true;
+		}
+		
+		// Only prevent default and handle swipe if it's a horizontal movement
+		if (isHorizontalSwipe && Math.abs(deltaX) > Math.abs(deltaY)) {
+			e.preventDefault();
+			
+			if (deltaX < 0) { // Only allow left swipe
+				const translateX = Math.max(deltaX, -80);
+				card.querySelector('.card-content').style.transform = `translateX(${translateX}px)`;
+				card.querySelector('.card-actions').style.transform = `translateX(${translateX + 80}px)`;
+			}
 		}
 	});
 	
@@ -360,32 +378,39 @@ function addSwipeHandlers(card) {
 		card.style.transition = '';
 		
 		const deltaX = currentX - startX;
+		const deltaY = currentY - startY;
 		const deltaTime = Date.now() - startTime;
 		const velocity = Math.abs(deltaX) / deltaTime;
 		
-		// Only trigger swipe actions if there was significant movement and time
-		// This prevents accidental triggers from simple taps
-		if (Math.abs(deltaX) < 20 || deltaTime < 150 || deltaX === 0) {
-			// Very small movement, too quick, or no movement - treat as a tap, not a swipe
-			card.classList.remove('swiped');
-		} else if (deltaX < -80) {
-			// Swiped far enough to delete - don't reset transforms
-			card.classList.add('swiped');
+		// Only trigger swipe actions if this was a horizontal swipe with significant movement
+		if (isHorizontalSwipe && Math.abs(deltaX) > Math.abs(deltaY)) {
+			// Only trigger swipe actions if there was significant movement and time
+			// This prevents accidental triggers from simple taps
+			if (Math.abs(deltaX) < 20 || deltaTime < 150 || deltaX === 0) {
+				// Very small movement, too quick, or no movement - treat as a tap, not a swipe
+				card.classList.remove('swiped');
+			} else if (deltaX < -80) {
+				// Swiped far enough to delete - don't reset transforms
+				card.classList.add('swiped');
 
-			card.classList.add('collapsing');
-			setTimeout(() => {
-				const title = card.querySelector('.card-title').textContent;
-				hiddenTitles.add(title);
-				card.remove();
-			}, 300);
-		}  else {
-			// Not swiped enough, reset
-			card.classList.remove('swiped');
+				card.classList.add('collapsing');
+				setTimeout(() => {
+					const title = card.querySelector('.card-title').textContent;
+					hiddenTitles.add(title);
+					card.remove();
+				}, 300);
+			} else {
+				// Not swiped enough, reset
+				card.classList.remove('swiped');
+			}
 		}
 		
 		// Always reset transform styles after touch ends
 		card.querySelector('.card-content').style.transform = '';
 		card.querySelector('.card-actions').style.transform = '';
+		
+		// Reset horizontal swipe flag
+		isHorizontalSwipe = false;
 	});
 	
 	// Mouse events for desktop
@@ -394,9 +419,12 @@ function addSwipeHandlers(card) {
 		if (e.target.closest('button, a, .more-btn')) return;
 		
 		startX = e.clientX;
+		startY = e.clientY;
 		currentX = e.clientX; // Initialize currentX to startX to prevent false deltas
+		currentY = e.clientY; // Initialize currentY to startY to prevent false deltas
 		startTime = Date.now();
 		isDragging = true;
+		isHorizontalSwipe = false;
 		card.style.transition = 'none';
 		card.style.cursor = 'grabbing';
 	});
@@ -404,12 +432,22 @@ function addSwipeHandlers(card) {
 	card.addEventListener('mousemove', (e) => {
 		if (!isDragging) return;
 		currentX = e.clientX;
+		currentY = e.clientY;
 		const deltaX = currentX - startX;
+		const deltaY = currentY - startY;
 		
-		if (deltaX < 0) { // Only allow left swipe
-			const translateX = Math.max(deltaX, -80);
-			card.querySelector('.card-content').style.transform = `translateX(${translateX}px)`;
-			card.querySelector('.card-actions').style.transform = `translateX(${translateX + 80}px)`;
+		// Determine if this is a horizontal swipe (only after some movement)
+		if (!isHorizontalSwipe && Math.abs(deltaX) > 10) {
+			isHorizontalSwipe = true;
+		}
+		
+		// Only handle swipe if it's a horizontal movement
+		if (isHorizontalSwipe && Math.abs(deltaX) > Math.abs(deltaY)) {
+			if (deltaX < 0) { // Only allow left swipe
+				const translateX = Math.max(deltaX, -80);
+				card.querySelector('.card-content').style.transform = `translateX(${translateX}px)`;
+				card.querySelector('.card-actions').style.transform = `translateX(${translateX + 80}px)`;
+			}
 		}
 	});
 	
@@ -420,33 +458,40 @@ function addSwipeHandlers(card) {
 		card.style.cursor = '';
 		
 		const deltaX = currentX - startX;
+		const deltaY = currentY - startY;
 		const deltaTime = Date.now() - startTime;
 		const velocity = Math.abs(deltaX) / deltaTime;
 		
-		// Only trigger swipe actions if there was significant movement and time
-		// This prevents accidental triggers from simple clicks
-		if (Math.abs(deltaX) < 20 || deltaTime < 150 || deltaX === 0) {
-			// Very small movement, too quick, or no movement - treat as a click, not a swipe
-			card.classList.remove('swiped');
-		} else if (deltaX < -80) {
-			// Swiped far enough to delete - don't reset transforms
-			card.classList.add('collapsing');
-			setTimeout(() => {
-				const title = card.querySelector('.card-title').textContent;
-				hiddenTitles.add(title);
-				card.remove();
-			}, 300);
-		} else if (deltaX < -40 || (deltaX < -20 && velocity > 0.3)) {
-			// Swiped enough to show delete indicator
-			card.classList.add('swiped');
-		} else {
-			// Not swiped enough, reset
-			card.classList.remove('swiped');
+		// Only trigger swipe actions if this was a horizontal swipe with significant movement
+		if (isHorizontalSwipe && Math.abs(deltaX) > Math.abs(deltaY)) {
+			// Only trigger swipe actions if there was significant movement and time
+			// This prevents accidental triggers from simple clicks
+			if (Math.abs(deltaX) < 20 || deltaTime < 150 || deltaX === 0) {
+				// Very small movement, too quick, or no movement - treat as a click, not a swipe
+				card.classList.remove('swiped');
+			} else if (deltaX < -80) {
+				// Swiped far enough to delete - don't reset transforms
+				card.classList.add('collapsing');
+				setTimeout(() => {
+					const title = card.querySelector('.card-title').textContent;
+					hiddenTitles.add(title);
+					card.remove();
+				}, 300);
+			} else if (deltaX < -40 || (deltaX < -20 && velocity > 0.3)) {
+				// Swiped enough to show delete indicator
+				card.classList.add('swiped');
+			} else {
+				// Not swiped enough, reset
+				card.classList.remove('swiped');
+			}
 		}
 		
 		// Always reset transform styles after mouse up
 		card.querySelector('.card-content').style.transform = '';
 		card.querySelector('.card-actions').style.transform = '';
+		
+		// Reset horizontal swipe flag
+		isHorizontalSwipe = false;
 	});
 	
 	// Remove the click outside handler that was closing cards
