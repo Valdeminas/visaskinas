@@ -8,18 +8,22 @@
 </head>
 <body>
     <main style="max-width: 820px; margin: 16px auto; padding: 0 12px;">
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding: 10px 12px; margin-bottom: 10px; display:flex; align-items:center; justify-content: space-between; gap:10px;">
+        <div id="moviesList" class="movies-list-container" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </main>
+
+    <!-- Sticky date picker at bottom -->
+    <div class="sticky-date-container">
+        <div style="max-width: 820px; margin: 0 auto; display:flex; align-items:center; justify-content: space-between; gap:10px;">
             <div style="display:flex; align-items:center; gap:8px;">
                 <div class="date-label-container">
                     <strong id="dateLabel" style="font-size:16px;">Today</strong>
                 </div>
-                <input type="date" id="datePicker" style="font-size:13px; padding:6px 8px;">
+                <button id="prevDateBtn" class="date-nav-btn" title="Previous day">‹</button>
+                <button id="nextDateBtn" class="date-nav-btn" title="Next day">›</button>
+                <input type="date" id="datePicker" class="date-input">
             </div>
-
         </div>
-
-        <div id="moviesList" class="movies-list-container" style="display:flex; flex-direction:column; gap:8px;"></div>
-    </main>
+    </div>
 
     <script src="app.js"></script>
     </body>

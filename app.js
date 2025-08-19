@@ -124,6 +124,11 @@ function renderList(movies) {
 		if (shows.length === 0) continue;
 		const card = document.createElement('div');
 		card.className = 'card';
+		
+		// Create card content wrapper
+		const cardContent = document.createElement('div');
+		cardContent.className = 'card-content';
+		
 		const header = document.createElement('div');
 		header.className = 'card-header';
 		const h = document.createElement('h2');
@@ -144,7 +149,7 @@ function renderList(movies) {
 		});
 		header.appendChild(h);
 		header.appendChild(close);
-		card.appendChild(header);
+		cardContent.appendChild(header);
 		// Group by cinema: show earliest time and a +N expander for the rest
 		const byCinema = new Map();
 		for (const s of shows) {
@@ -201,7 +206,7 @@ function renderList(movies) {
 			cinemaWrap.appendChild(cinemaText);
 			row.appendChild(cinemaWrap);
 			if (moreBtn) row.appendChild(moreBtn);
-			card.appendChild(row);
+			cardContent.appendChild(row);
 
 			if (extraCount > 0) {
 				extraContainer = document.createElement('div');
@@ -220,10 +225,26 @@ function renderList(movies) {
 					t.style.color = '#111';
 					extraContainer.appendChild(t);
 				});
-				card.appendChild(extraContainer);
+				cardContent.appendChild(extraContainer);
 			}
 		});
+		
+		// Add card content to card
+		card.appendChild(cardContent);
+		
+		// Create swipe actions (delete indicator)
+		const cardActions = document.createElement('div');
+		cardActions.className = 'card-actions';
+		const deleteIndicator = document.createElement('div');
+		deleteIndicator.className = 'delete-indicator';
+		deleteIndicator.textContent = 'Delete';
+		cardActions.appendChild(deleteIndicator);
+		card.appendChild(cardActions);
+		
 		container.appendChild(card);
+		
+		// Add swipe functionality
+		addSwipeHandlers(card);
 	}
 	if (!container.children.length) {
 		const empty = document.createElement('div');
@@ -269,8 +290,146 @@ async function init() {
 		}, 300); // Match the CSS transition duration
 	};
 
+	// Date navigation buttons
+	const prevDateBtn = document.getElementById('prevDateBtn');
+	const nextDateBtn = document.getElementById('nextDateBtn');
+
+	prevDateBtn.addEventListener('click', async () => {
+		const currentDate = new Date(dateInput.value);
+		currentDate.setDate(currentDate.getDate() - 1);
+		dateInput.value = formatDateForInput(currentDate);
+		dateInput.dispatchEvent(new Event('change'));
+	});
+
+	nextDateBtn.addEventListener('click', async () => {
+		const currentDate = new Date(dateInput.value);
+		currentDate.setDate(currentDate.getDate() + 1);
+		dateInput.value = formatDateForInput(currentDate);
+		dateInput.dispatchEvent(new Event('change'));
+	});
 
 
+
+}
+
+// Swipe functionality for cards
+function addSwipeHandlers(card) {
+	let startX = 0;
+	let currentX = 0;
+	let isDragging = false;
+	let startTime = 0;
+	
+	// Touch events
+	card.addEventListener('touchstart', (e) => {
+		startX = e.touches[0].clientX;
+		startTime = Date.now();
+		isDragging = true;
+		card.style.transition = 'none';
+	});
+	
+	card.addEventListener('touchmove', (e) => {
+		if (!isDragging) return;
+		e.preventDefault();
+		currentX = e.touches[0].clientX;
+		const deltaX = currentX - startX;
+		
+		if (deltaX < 0) { // Only allow left swipe
+			const translateX = Math.max(deltaX, -80);
+			card.querySelector('.card-content').style.transform = `translateX(${translateX}px)`;
+			card.querySelector('.card-actions').style.transform = `translateX(${translateX + 80}px)`;
+		}
+	});
+	
+	card.addEventListener('touchend', (e) => {
+		if (!isDragging) return;
+		isDragging = false;
+		card.style.transition = '';
+		
+		const deltaX = currentX - startX;
+		const deltaTime = Date.now() - startTime;
+		const velocity = Math.abs(deltaX) / deltaTime;
+		
+		// Determine if swipe should complete or delete
+		if (deltaX < -80) {
+			// Swiped far enough to delete - don't reset transforms
+			card.classList.add('collapsing');
+			setTimeout(() => {
+				const title = card.querySelector('.card-title').textContent;
+				hiddenTitles.add(title);
+				card.remove();
+			}, 300);
+		} else if (deltaX < -40 || (deltaX < -20 && velocity > 0.3)) {
+			// Swiped enough to show delete indicator
+			card.classList.add('swiped');
+		} else {
+			// Not swiped enough, reset
+			card.classList.remove('swiped');
+		}
+		
+		// Always reset transform styles after touch ends
+		card.querySelector('.card-content').style.transform = '';
+		card.querySelector('.card-actions').style.transform = '';
+	});
+	
+	// Mouse events for desktop
+	card.addEventListener('mousedown', (e) => {
+		startX = e.clientX;
+		startTime = Date.now();
+		isDragging = true;
+		card.style.transition = 'none';
+		card.style.cursor = 'grabbing';
+	});
+	
+	card.addEventListener('mousemove', (e) => {
+		if (!isDragging) return;
+		currentX = e.clientX;
+		const deltaX = currentX - startX;
+		
+		if (deltaX < 0) { // Only allow left swipe
+			const translateX = Math.max(deltaX, -80);
+			card.querySelector('.card-content').style.transform = `translateX(${translateX}px)`;
+			card.querySelector('.card-actions').style.transform = `translateX(${translateX + 80}px)`;
+		}
+	});
+	
+	card.addEventListener('mouseup', (e) => {
+		if (!isDragging) return;
+		isDragging = false;
+		card.style.transition = '';
+		card.style.cursor = '';
+		
+		const deltaX = currentX - startX;
+		const deltaTime = Date.now() - startTime;
+		const velocity = Math.abs(deltaX) / deltaTime;
+		
+		// Determine if swipe should complete or delete
+		if (deltaX < -80) {
+			// Swiped far enough to delete - don't reset transforms
+			card.classList.add('collapsing');
+			setTimeout(() => {
+				const title = card.querySelector('.card-title').textContent;
+				hiddenTitles.add(title);
+				card.remove();
+			}, 300);
+		} else if (deltaX < -40 || (deltaX < -20 && velocity > 0.3)) {
+			// Swiped enough to show delete indicator
+			card.classList.add('swiped');
+		} else {
+			// Not swiped enough, reset
+			card.classList.remove('swiped');
+		}
+		
+		// Always reset transform styles after mouse up
+		card.querySelector('.card-content').style.transform = '';
+		card.querySelector('.card-actions').style.transform = '';
+	});
+	
+	// Reset swipe state when clicking outside
+	document.addEventListener('click', (e) => {
+		if (!card.contains(e.target)) {
+			card.classList.remove('swiped');
+		}
+	});
 }
 
 window.addEventListener('DOMContentLoaded', init);
