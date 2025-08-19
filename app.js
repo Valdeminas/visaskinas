@@ -321,6 +321,9 @@ function addSwipeHandlers(card) {
 	
 	// Touch events
 	card.addEventListener('touchstart', (e) => {
+		// Don't start swipe if clicking on interactive elements
+		if (e.target.closest('button, a, .more-btn')) return;
+		
 		startX = e.touches[0].clientX;
 		startTime = Date.now();
 		isDragging = true;
@@ -352,16 +355,15 @@ function addSwipeHandlers(card) {
 		// Determine if swipe should complete or delete
 		if (deltaX < -80) {
 			// Swiped far enough to delete - don't reset transforms
+			card.classList.add('swiped');
+
 			card.classList.add('collapsing');
 			setTimeout(() => {
 				const title = card.querySelector('.card-title').textContent;
 				hiddenTitles.add(title);
 				card.remove();
 			}, 300);
-		} else if (deltaX < -40 || (deltaX < -20 && velocity > 0.3)) {
-			// Swiped enough to show delete indicator
-			card.classList.add('swiped');
-		} else {
+		}  else {
 			// Not swiped enough, reset
 			card.classList.remove('swiped');
 		}
@@ -373,6 +375,9 @@ function addSwipeHandlers(card) {
 	
 	// Mouse events for desktop
 	card.addEventListener('mousedown', (e) => {
+		// Don't start swipe if clicking on interactive elements
+		if (e.target.closest('button, a, .more-btn')) return;
+		
 		startX = e.clientX;
 		startTime = Date.now();
 		isDragging = true;
