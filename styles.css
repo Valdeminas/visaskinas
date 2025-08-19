@@ -248,7 +248,4 @@ body {
     filter: invert(0.3);
 }
 
-/* Add bottom padding to main content to prevent overlap with sticky date picker */
-main {
-    padding-bottom: 80px;
-}
+/* Bottom padding removed - using spacer div approach instead */

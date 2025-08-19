@@ -255,6 +255,12 @@ function renderList(movies) {
 		empty.className = 'muted';
 		empty.textContent = 'No movies found';
 		container.appendChild(empty);
+	} else {
+		// Add a spacer div at the end to prevent sticky date picker from overlapping content
+		const spacer = document.createElement('div');
+		spacer.style.height = '80px';
+		spacer.style.width = '100%';
+		container.appendChild(spacer);
 	}
 }
 
