@@ -1,0 +1,22 @@
+# Vilnius Cinemas - Movie Listings
+
+A web application that displays movie listings for Vilnius cinemas with date selection functionality.
+
+### Running the Application
+
+1. Clone or download this project to your local machine
+
+2. Navigate to the project directory in your terminal:
+   ```bash
+   cd /path/to/your/project
+   ```
+
+3. Start the local server:
+   ```bash
+   python -m http.server 8000
+   ```
+
+4. Open your web browser and navigate to:
+   ```
+   http://localhost:8000
+   ```
