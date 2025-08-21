@@ -23,9 +23,8 @@ function labelForDate(date) {
 }
 
 // ---------- Data sources ----------
-async function parseForumLike(cinemaRoot,date,theatreId) {
-	const formattedDate = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
-	const url = `https://www.${cinemaRoot}.lt/xml/Schedule?dt=${formattedDate}&area=${theatreId}`;
+async function parseForumLike(cinemaRoot,theatreId) {
+	const url = `https://www.${cinemaRoot}.lt/xml/Schedule?area=${theatreId}&nrOfDays=31`;
 	const response = await fetch(url);
 	const text = await response.text();
 	const data = JSON.parse(text);
@@ -35,14 +34,15 @@ async function parseForumLike(cinemaRoot,date,theatreId) {
 				title: show.Title || "",
 				time: new Date(show.dttmShowStart),
 				cinema: show.Theatre || "",
-				url: show.ShowURL || ""
+				url: show.ShowURL || "",
+				originalTitle: show.OriginalTitle || ""
 			}))
 			.filter(show => show.time > now);
 	return movies;
 }
 
-async function parsePasaka(date) {
-	const url = `https://api.pasaka.lt/movies?include=mpaaRating,genres,collections&filter[date]=${date}&filter[project_identifier]=pasaka`;
+async function parsePasaka() {
+	const url = `https://api.pasaka.lt/movies`;
 	const res = await fetch(url);
 	const data = await res.json();
 	const now = new Date();
@@ -53,16 +53,14 @@ async function parsePasaka(date) {
 					time: new Date(event.starts_at.full),
 					cinema: event.theater.name,
 					url: event.markus_link,
+					originalTitle: event.original_name
 				}))
 			)
 			.filter(show => show.time > now);
 	return movies;
 }
 
-async function parseSkalvija(selectedDate) {
-	const selectedYear = selectedDate.getFullYear();
-	const selectedMonth = selectedDate.getMonth();
-	const selectedDay = selectedDate.getDate();
+async function parseSkalvija() {
 	const url = "https://skalvija.lt/wp-json/data/v1/get_shows/";
 	const res = await fetch(url);
 	const json = await res.json();
@@ -77,21 +75,21 @@ async function parseSkalvija(selectedDate) {
 			title: event.title,
 			time: new Date(show.start_date*1000),
 			cinema: 'Skalvija',
-			url: 'https://www.skalvija.lt'+event.link+`?show=${show._id}`
+			url: 'https://www.skalvija.lt'+event.link+`?show=${show._id}`,
+			originalTitle: event.title_originalo_kalba
 		};
 	})
-	.filter(show => show.time.getFullYear() == selectedYear && show.time.getMonth() == selectedMonth && show.time.getDate() == selectedDay)
 	.filter(show => show.time > now);
 	return movies;
 }
 
-async function getAllMovies(selectedDate) {
+async function getAllMovies() {
 	const results = await Promise.all([
-		parseForumLike('forumcinemas',selectedDate,1011),
-		parsePasaka(formatDate(selectedDate)),
-		parseSkalvija(selectedDate),
-		parseForumLike('apollokinas',selectedDate,1019),
-		parseForumLike('apollokinas',selectedDate,1024),
+		parseForumLike('forumcinemas',1011),
+		parsePasaka(),
+		parseSkalvija(),
+		parseForumLike('apollokinas',1019),
+		parseForumLike('apollokinas',1024),
 	]);
 	return results.flat();
 }
@@ -112,11 +110,25 @@ function groupByTitle(movies) {
 	return map;
 }
 
-function renderList(movies) {
+function renderList(movies, selectedDate = null) {
 	const container = document.getElementById('moviesList');
 	if (!container) return;
 	container.innerHTML = '';
-	const byTitle = groupByTitle(movies);
+	
+	// Filter movies by selected date if provided
+	let filteredMovies = movies;
+	if (selectedDate) {
+		const startOfDay = new Date(selectedDate);
+		startOfDay.setHours(0, 0, 0, 0);
+		const endOfDay = new Date(selectedDate);
+		endOfDay.setHours(23, 59, 59, 999);
+		
+		filteredMovies = movies.filter(movie => {
+			return movie.time >= startOfDay && movie.time <= endOfDay;
+		});
+	}
+	
+	const byTitle = groupByTitle(filteredMovies);
 	const titles = Array.from(byTitle.keys());
 	for (const title of titles) {
 		if (hiddenTitles.has(title)) continue;
@@ -273,14 +285,13 @@ async function init() {
 	dateLabel.textContent = labelForDate(new Date(dateInput.value));
 	const selectedDate = new Date(dateInput.value);
 	hiddenTitles = new Set();
-	currentMovies = await getAllMovies(selectedDate);
-	renderList(currentMovies);
-	dateInput.onchange = async () => {
-		// First, fetch new data while current content is still visible
+	currentMovies = await getAllMovies();
+	renderList(currentMovies, selectedDate);
+	dateInput.onchange = () => {
+		// Just change the date - no need to fetch new data
 		const newDate = new Date(dateInput.value);
-		const newMovies = await getAllMovies(newDate);
 		
-		// Now fade out current content
+		// Fade out current content
 		const moviesContainer = document.getElementById('moviesList');
 		const dateLabelContainer = document.querySelector('.date-label-container');
 		
@@ -288,11 +299,10 @@ async function init() {
 		dateLabelContainer.classList.add('fade-out');
 		
 		// Wait for fade out, then update content and fade back in
-		setTimeout(async () => {
+		setTimeout(() => {
 			dateLabel.textContent = labelForDate(newDate);
 			hiddenTitles = new Set();
-			currentMovies = newMovies;
-			renderList(currentMovies);
+			renderList(currentMovies, newDate);
 			
 			// Fade back in
 			moviesContainer.classList.remove('fade-out');
