@@ -27,8 +27,18 @@ function isMobileDevice() {
 	return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
+function isIPhone() {
+	return /iPhone|iPod/i.test(navigator.userAgent);
+}
+
 function handleMobileKeyboard() {
 	if (!isMobileDevice()) return;
+	
+	// Special handling for iPhone
+	if (isIPhone()) {
+		handleIPhoneKeyboard();
+		return;
+	}
 	
 	// Ensure search input stays visible on mobile
 	const searchInput = document.getElementById('searchInput');
@@ -46,8 +56,31 @@ function handleMobileKeyboard() {
 	}
 }
 
+function handleIPhoneKeyboard() {
+	// iPhone-specific keyboard handling
+	const searchInput = document.getElementById('searchInput');
+	const searchControls = document.getElementById('searchControls');
+	
+	if (searchInput && searchControls && !searchControls.classList.contains('hidden')) {
+		// On iPhone, we don't scroll the page, just ensure the input is accessible
+		setTimeout(() => {
+			// Ensure the search controls are visible without moving the page
+			if (searchControls) {
+				searchControls.style.position = 'relative';
+				searchControls.style.zIndex = '1001';
+			}
+		}, 100);
+	}
+}
+
 function ensureSearchVisibility() {
 	if (!isMobileDevice()) return;
+	
+	// Special handling for iPhone
+	if (isIPhone()) {
+		ensureIPhoneSearchVisibility();
+		return;
+	}
 	
 	const searchInput = document.getElementById('searchInput');
 	const searchControls = document.getElementById('searchControls');
@@ -68,6 +101,26 @@ function ensureSearchVisibility() {
 				});
 			}
 		}, 150);
+	}
+}
+
+function ensureIPhoneSearchVisibility() {
+	// iPhone-specific search visibility handling
+	const searchInput = document.getElementById('searchInput');
+	const searchControls = document.getElementById('searchControls');
+	
+	if (searchInput && searchControls && !searchControls.classList.contains('hidden')) {
+		// On iPhone, ensure the search interface stays accessible without page movement
+		searchControls.style.position = 'relative';
+		searchControls.style.zIndex = '1001';
+		
+		// Don't scroll the page on iPhone - let the viewport handle it
+		setTimeout(() => {
+			// Ensure the search input is focused and visible
+			if (searchInput) {
+				searchInput.focus();
+			}
+		}, 100);
 	}
 }
 
@@ -549,9 +602,6 @@ async function init() {
 	// Search toggle button functionality
 	searchToggleBtn.addEventListener('click', () => {
 		if (searchControls.classList.contains('hidden')) {
-			// Show loading state for search mode transition
-			showLoading();
-			
 			// Show search controls, hide normal controls
 			normalControls.classList.add('hidden');
 			searchControls.classList.remove('hidden');
@@ -570,13 +620,8 @@ async function init() {
 				if (isMobileDevice()) {
 					handleMobileKeyboard();
 				}
-				// Hide loading state after search mode is ready
-				hideLoading();
 			}, 150);
 		} else {
-			// Show loading state for normal mode transition
-			showLoading();
-			
 			// Show normal controls, hide search controls
 			searchControls.classList.add('hidden');
 			normalControls.classList.remove('hidden');
@@ -591,9 +636,6 @@ async function init() {
 			const currentDate = new Date(dateInput.value);
 			renderList(currentMovies, currentDate);
 			updateSearchResultsCount();
-			
-			// Hide loading state after normal mode is ready
-			hideLoading();
 		}
 	});
 	
@@ -652,14 +694,23 @@ async function init() {
 			
 			// If viewport height decreased significantly, keyboard likely appeared
 			if (heightDifference > 150) {
-				ensureSearchVisibility();
+				if (isIPhone()) {
+					// On iPhone, don't scroll the page, just ensure search is accessible
+					ensureIPhoneSearchVisibility();
+				} else {
+					ensureSearchVisibility();
+				}
 			}
 		});
 		
 		// Handle focus events for better mobile experience
 		searchInput.addEventListener('focus', () => {
 			setTimeout(() => {
-				handleMobileKeyboard();
+				if (isIPhone()) {
+					handleIPhoneKeyboard();
+				} else {
+					handleMobileKeyboard();
+				}
 			}, 100);
 		});
 		
@@ -669,7 +720,11 @@ async function init() {
 			setTimeout(() => {
 				if (isMobileDevice()) {
 					// Ensure the search interface is still accessible
-					ensureSearchVisibility();
+					if (isIPhone()) {
+						ensureIPhoneSearchVisibility();
+					} else {
+						ensureSearchVisibility();
+					}
 				}
 			}, 300);
 		});
@@ -679,7 +734,11 @@ async function init() {
 			setTimeout(() => {
 				initialViewportHeight = window.innerHeight;
 				if (searchControls && !searchControls.classList.contains('hidden')) {
-					ensureSearchVisibility();
+					if (isIPhone()) {
+						ensureIPhoneSearchVisibility();
+					} else {
+						ensureSearchVisibility();
+					}
 				}
 			}, 500);
 		});
@@ -688,7 +747,11 @@ async function init() {
 		if ('visualViewport' in window) {
 			window.visualViewport.addEventListener('resize', () => {
 				if (searchControls && !searchControls.classList.contains('hidden')) {
-					ensureSearchVisibility();
+					if (isIPhone()) {
+						ensureIPhoneSearchVisibility();
+					} else {
+						ensureSearchVisibility();
+					}
 				}
 			});
 		}
@@ -716,9 +779,6 @@ async function init() {
 		// Just change the date - no need to fetch new data
 		const newDate = new Date(dateInput.value);
 		
-		// Show loading state for date change
-		showLoading();
-		
 		// Fade out current content
 		const moviesContainer = document.getElementById('moviesList');
 		const dateLabelContainer = document.querySelector('.date-label-container');
@@ -736,9 +796,6 @@ async function init() {
 			// Fade back in
 			moviesContainer.classList.remove('fade-out');
 			dateLabelContainer.classList.remove('fade-out');
-			
-			// Hide loading state after content is updated
-			hideLoading();
 		}, 300); // Match the CSS transition duration
 	};
 

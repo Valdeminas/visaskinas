@@ -9,9 +9,13 @@ body {
     font-size: 14px; /* Base font size for mobile */
     -webkit-text-size-adjust: 100%; /* Prevent font scaling on iOS */
     -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
-    /* Mobile keyboard handling */
-    min-height: 100vh;
-    min-height: 100dvh; /* Dynamic viewport height for mobile */
+    /* iPhone keyboard handling - prevent page movement */
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    height: 100dvh; /* Dynamic viewport height for mobile */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Loading overlay */
@@ -77,6 +81,9 @@ body {
     max-width: 100%;
     min-height: calc(100vh - 120px); /* Account for sticky footer */
     min-height: calc(100dvh - 120px); /* Dynamic viewport height for mobile */
+    /* iPhone keyboard handling */
+    position: relative;
+    z-index: 1;
 }
 
 /* Content fade transitions */
@@ -378,12 +385,15 @@ body {
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     background: rgba(255, 255, 255, 0.95);
-    /* Mobile keyboard handling */
-    position: fixed;
+    /* iPhone keyboard handling */
     bottom: env(safe-area-inset-bottom, 0);
     /* Ensure search stays visible on mobile */
     transform: translateZ(0);
     will-change: transform;
+    /* Prevent page movement when keyboard appears */
+    position: fixed;
+    bottom: 0;
+    bottom: env(safe-area-inset-bottom, 0);
 }
 
 .date-controls-wrapper {
@@ -1192,5 +1202,99 @@ body {
     
     .times.expanded {
         padding: 12px 0;
+    }
+}
+
+/* iPhone keyboard handling */
+@media screen and (max-height: 600px) {
+    body {
+        /* Prevent page movement when keyboard appears */
+        position: fixed;
+        width: 100%;
+        height: 100vh;
+        height: 100dvh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .main-container {
+        /* Adjust for iPhone keyboard */
+        min-height: calc(100vh - 120px);
+        min-height: calc(100dvh - 120px);
+        padding-bottom: 80px; /* Extra space for keyboard */
+    }
+    
+    .sticky-date-container {
+        /* Ensure it stays above keyboard */
+        bottom: 0;
+        bottom: env(safe-area-inset-bottom, 0);
+        position: fixed;
+        z-index: 1000;
+    }
+}
+
+/* iPhone landscape keyboard handling */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    body {
+        position: fixed;
+        width: 100%;
+        height: 100vh;
+        height: 100dvh;
+        overflow-y: auto;
+    }
+    
+    .main-container {
+        min-height: calc(100vh - 80px);
+        min-height: calc(100dvh - 80px);
+        padding-bottom: 60px;
+    }
+    
+    .sticky-date-container {
+        padding: 6px 8px;
+    }
+}
+
+/* iPhone-specific keyboard handling */
+@supports (-webkit-touch-callout: none) {
+    body {
+        /* iPhone-specific viewport handling */
+        position: fixed;
+        width: 100%;
+        height: 100vh;
+        height: 100dvh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        /* Prevent page movement when keyboard appears */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+    }
+    
+    .main-container {
+        /* Ensure content fits above keyboard */
+        min-height: calc(100vh - 120px);
+        min-height: calc(100dvh - 120px);
+        padding-bottom: 100px; /* Extra space for iPhone keyboard */
+    }
+    
+    .sticky-date-container {
+        /* Ensure it stays above keyboard */
+        position: fixed;
+        bottom: 0;
+        bottom: env(safe-area-inset-bottom, 0);
+        z-index: 1000;
+        /* iPhone-specific positioning */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+    }
+    
+    /* Prevent body scroll when keyboard is visible */
+    body.keyboard-visible {
+        overflow: hidden;
+    }
+    
+    /* Allow scrolling within main container */
+    .main-container {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 }
