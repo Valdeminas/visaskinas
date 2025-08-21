@@ -7,24 +7,45 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <main style="max-width: 820px; margin: 16px auto; padding: 0 12px;">
-        <div id="moviesList" class="movies-list-container" style="display:flex; flex-direction:column; gap:8px;"></div>
+    <main class="main-container">
+        <div id="moviesList" class="movies-list-container"></div>
     </main>
 
     <!-- Sticky date picker at bottom -->
     <div class="sticky-date-container">
-        <div style="max-width: 820px; margin: 0 auto; display:flex; align-items:center; justify-content: space-between; gap:10px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <div class="date-label-container">
-                    <strong id="dateLabel" style="font-size:16px;">Today</strong>
+        <div class="date-controls-wrapper">
+            <!-- Normal controls (date picker + search button) -->
+            <div id="normalControls" class="normal-controls">
+                <div class="date-controls-row">
+                    <div class="date-label-container">
+                        <strong id="dateLabel" class="date-label">Today</strong>
+                    </div>
+                    <input type="date" id="datePicker" class="date-input">
+                    <button id="prevDateBtn" class="date-nav-btn" title="Previous day">‹</button>
+                    <button id="nextDateBtn" class="date-nav-btn" title="Next day">›</button>
                 </div>
-                <input type="date" id="datePicker" class="date-input">
-                <button id="prevDateBtn" class="date-nav-btn" title="Previous day">‹</button>
-                <button id="nextDateBtn" class="date-nav-btn" title="Next day">›</button>
+                <button id="searchToggleBtn" class="search-toggle-btn" title="Search movies">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Search controls (full-width search bar) -->
+            <div id="searchControls" class="search-controls hidden">
+                <div class="search-bar-full">
+                    <input type="text" id="searchInput" class="search-input-full" placeholder="Search movies..." title="Search movies by title">
+                    <button id="clearSearchBtn" class="clear-search-btn-full" title="Clear search">×</button>
+                </div>
+                <div class="search-info">
+                    <div id="searchResultsCount" class="search-results-count"></div>
+                    <div id="searchNote" class="search-note">Showing results across all dates</div>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="app.js"></script>
-    </body>
-    </html>
+</body>
+</html>

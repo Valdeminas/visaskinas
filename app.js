@@ -94,10 +94,53 @@ async function getAllMovies() {
 	return results.flat();
 }
 
+function filterMoviesBySearch(movies, query) {
+	if (!query || query.trim() === '') {
+		return movies;
+	}
+	
+	const searchTerm = query.toLowerCase().trim();
+	return movies.filter(movie => {
+		const title = movie.title.toLowerCase();
+		const originalTitle = (movie.originalTitle || '').toLowerCase();
+		return title.includes(searchTerm) || originalTitle.includes(searchTerm);
+	});
+}
+
+function updateSearchResultsCount() {
+	const searchResultsCount = document.getElementById('searchResultsCount');
+	const searchNote = document.getElementById('searchNote');
+	const dateFilterNote = document.getElementById('dateFilterNote');
+	if (!searchResultsCount || !searchNote || !dateFilterNote) return;
+	
+	if (!searchQuery || searchQuery.trim() === '') {
+		searchResultsCount.style.display = 'none';
+		searchNote.style.display = 'none';
+		dateFilterNote.style.display = 'none';
+		return;
+	}
+	
+	// When searching, show total results across all dates (date filtering is ignored)
+	const allSearchResults = filterMoviesBySearch(currentMovies, searchQuery);
+	const totalUniqueTitles = new Set(allSearchResults.map(movie => movie.title));
+	
+	searchResultsCount.style.display = 'block';
+	searchNote.style.display = 'block';
+	dateFilterNote.style.display = 'block';
+	searchResultsCount.textContent = `${totalUniqueTitles.size} movie${totalUniqueTitles.size !== 1 ? 's' : ''} found`;
+}
+
+function highlightSearchTerm(text, searchTerm) {
+	if (!searchTerm || !text) return text;
+	
+	const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+	return text.replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
 // ---------- Simplified state and UI (mockup style) ----------
 let currentMovies = [];
 let hiddenTitles = new Set();
-
+let searchQuery = '';
 
 
 function groupByTitle(movies) {
@@ -115,17 +158,32 @@ function renderList(movies, selectedDate = null) {
 	if (!container) return;
 	container.innerHTML = '';
 	
-	// Filter movies by selected date if provided
 	let filteredMovies = movies;
-	if (selectedDate) {
-		const startOfDay = new Date(selectedDate);
-		startOfDay.setHours(0, 0, 0, 0);
-		const endOfDay = new Date(selectedDate);
-		endOfDay.setHours(23, 59, 59, 999);
-		
-		filteredMovies = movies.filter(movie => {
-			return movie.time >= startOfDay && movie.time <= endOfDay;
-		});
+	
+	// Check if we're in search mode (search interface is open)
+	const searchControls = document.getElementById('searchControls');
+	const isInSearchMode = searchControls && !searchControls.classList.contains('hidden');
+	
+	if (isInSearchMode) {
+		// In search mode: only show results if there's a search query, otherwise show nothing
+		if (searchQuery && searchQuery.trim() !== '') {
+			filteredMovies = filterMoviesBySearch(movies, searchQuery);
+		} else {
+			// Empty search or no search query in search mode - show nothing
+			filteredMovies = [];
+		}
+	} else {
+		// Not in search mode: apply normal date filtering
+		if (selectedDate) {
+			const startOfDay = new Date(selectedDate);
+			startOfDay.setHours(0, 0, 0, 0);
+			const endOfDay = new Date(selectedDate);
+			endOfDay.setHours(23, 59, 59, 999);
+			
+			filteredMovies = movies.filter(movie => {
+				return movie.time >= startOfDay && movie.time <= endOfDay;
+			});
+		}
 	}
 	
 	const byTitle = groupByTitle(filteredMovies);
@@ -137,6 +195,11 @@ function renderList(movies, selectedDate = null) {
 		const card = document.createElement('div');
 		card.className = 'card';
 		
+		// Add search result styling when searching
+		if (searchQuery && searchQuery.trim() !== '') {
+			card.classList.add('search-result-card');
+		}
+		
 		// Create card content wrapper
 		const cardContent = document.createElement('div');
 		cardContent.className = 'card-content';
@@ -145,7 +208,7 @@ function renderList(movies, selectedDate = null) {
 		header.className = 'card-header';
 		const h = document.createElement('h2');
 		h.className = 'card-title';
-		h.textContent = title;
+		h.innerHTML = highlightSearchTerm(title, searchQuery);
 		const close = document.createElement('button');
 		close.className = 'close-btn';
 		close.textContent = '×';
@@ -166,6 +229,16 @@ function renderList(movies, selectedDate = null) {
 		header.appendChild(h);
 		header.appendChild(close);
 		cardContent.appendChild(header);
+		
+		// Add subtitle for search results showing total showings
+		if (searchQuery && searchQuery.trim() !== '') {
+			const subtitle = document.createElement('div');
+			subtitle.className = 'search-result-subtitle';
+			const totalShowings = shows.length;
+			subtitle.textContent = `${totalShowings} showing${totalShowings !== 1 ? 's' : ''} across all dates`;
+			cardContent.appendChild(subtitle);
+		}
+		
 		// Group by cinema: show earliest time and a +N expander for the rest
 		const byCinema = new Map();
 		for (const s of shows) {
@@ -185,7 +258,13 @@ function renderList(movies, selectedDate = null) {
 			time.href = earliest.url;
 			time.target = '_blank';
 			time.rel = 'noopener noreferrer';
-			time.textContent = earliest.time.toLocaleTimeString('lt-LT', { hour: '2-digit', minute: '2-digit' });
+			
+			// Show date and time for search results, just time for date-filtered results
+			if (searchQuery && searchQuery.trim() !== '') {
+				time.textContent = `${earliest.time.toLocaleDateString('lt-LT', { month: 'short', day: 'numeric' })} ${earliest.time.toLocaleTimeString('lt-LT', { hour: '2-digit', minute: '2-digit' })}`;
+			} else {
+				time.textContent = earliest.time.toLocaleTimeString('lt-LT', { hour: '2-digit', minute: '2-digit' });
+			}
 
 			const cinemaWrap = document.createElement('span');
 			cinemaWrap.className = 'cinema';
@@ -232,7 +311,14 @@ function renderList(movies, selectedDate = null) {
 					t.href = s.url;
 					t.target = '_blank';
 					t.rel = 'noopener noreferrer';
-					t.textContent = s.time.toLocaleTimeString('lt-LT', { hour: '2-digit', minute: '2-digit' });
+					
+					// Show date and time for search results, just time for date-filtered results
+					if (searchQuery && searchQuery.trim() !== '') {
+						t.textContent = `${s.time.toLocaleDateString('lt-LT', { month: 'short', day: 'numeric' })} ${s.time.toLocaleTimeString('lt-LT', { hour: '2-digit', minute: '2-digit' })}`;
+					} else {
+						t.textContent = s.time.toLocaleTimeString('lt-LT', { hour: '2-digit', minute: '2-digit' });
+					}
+					
 					t.style.border = '1px solid #eee';
 					t.style.borderRadius = '10px';
 					t.style.padding = '2px 6px';
@@ -265,7 +351,12 @@ function renderList(movies, selectedDate = null) {
 	if (!container.children.length) {
 		const empty = document.createElement('div');
 		empty.className = 'muted';
-		empty.textContent = 'No movies found';
+		if (searchQuery && searchQuery.trim() !== '') {
+			// When searching, we show results across all dates, so if no results, they don't exist anywhere
+			empty.innerHTML = `No movies found matching "<strong>${searchQuery}</strong>"`;
+		} else {
+			empty.textContent = 'No movies found';
+		}
 		container.appendChild(empty);
 	} else {
 		// Add a spacer div at the end to prevent sticky date picker from overlapping content
@@ -278,6 +369,11 @@ function renderList(movies, selectedDate = null) {
 
 async function init() {
 	const dateInput = document.getElementById('datePicker');
+	const searchInput = document.getElementById('searchInput');
+	const clearSearchBtn = document.getElementById('clearSearchBtn');
+	const searchToggleBtn = document.getElementById('searchToggleBtn');
+	const normalControls = document.getElementById('normalControls');
+	const searchControls = document.getElementById('searchControls');
 
 	const dateLabel = document.getElementById('dateLabel');
 	if (!dateInput.value) dateInput.value = formatDateForInput(new Date());
@@ -287,6 +383,100 @@ async function init() {
 	hiddenTitles = new Set();
 	currentMovies = await getAllMovies();
 	renderList(currentMovies, selectedDate);
+	
+	// Search toggle button functionality
+	searchToggleBtn.addEventListener('click', () => {
+		if (searchControls.classList.contains('hidden')) {
+			// Show search controls, hide normal controls
+			normalControls.classList.add('hidden');
+			searchControls.classList.remove('hidden');
+			searchToggleBtn.classList.add('active');
+			
+			// Clear the movie list immediately when entering search mode
+			const container = document.getElementById('moviesList');
+			if (container) {
+				container.innerHTML = '';
+			}
+			
+			// Focus search input after animation
+			setTimeout(() => {
+				searchInput.focus();
+			}, 150);
+		} else {
+			// Show normal controls, hide search controls
+			searchControls.classList.add('hidden');
+			normalControls.classList.remove('hidden');
+			searchToggleBtn.classList.remove('active');
+			
+			// Clear search
+			searchInput.value = '';
+			searchQuery = '';
+			hiddenTitles = new Set();
+			
+			// Get current date from date picker and render movies for that date
+			const currentDate = new Date(dateInput.value);
+			renderList(currentMovies, currentDate);
+			updateSearchResultsCount();
+		}
+	});
+	
+	// Search input event listener with debouncing
+	let searchTimeout;
+	searchInput.addEventListener('input', (e) => {
+		searchQuery = e.target.value;
+		hiddenTitles = new Set(); // Reset hidden titles when searching
+		
+		// Show/hide clear button
+		clearSearchBtn.style.display = searchQuery ? 'flex' : 'none';
+		
+		// Clear previous timeout
+		clearTimeout(searchTimeout);
+		
+		// Debounce the search to avoid excessive re-rendering
+		searchTimeout = setTimeout(() => {
+			renderList(currentMovies, null); // Pass null to ignore date filtering during search
+			updateSearchResultsCount();
+		}, 300); // Wait 300ms after user stops typing
+	});
+	
+	// Search input keyboard shortcuts
+	searchInput.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape') {
+			// Show normal controls, hide search controls
+			searchControls.classList.add('hidden');
+			normalControls.classList.remove('hidden');
+			searchToggleBtn.classList.remove('active');
+			
+			// Clear search
+			searchInput.value = '';
+			searchQuery = '';
+			hiddenTitles = new Set();
+			
+			// Get current date from date picker and render movies for that date
+			const currentDate = new Date(dateInput.value);
+			renderList(currentMovies, currentDate);
+			updateSearchResultsCount();
+		}
+	});
+	
+	// Clear search button event listener
+	clearSearchBtn.addEventListener('click', () => {
+		// Show normal controls, hide search controls
+		searchControls.classList.add('hidden');
+		normalControls.classList.remove('hidden');
+		searchToggleBtn.classList.remove('active');
+		
+		// Clear search
+		searchInput.value = '';
+		searchQuery = '';
+		hiddenTitles = new Set();
+		
+		// Get current date from date picker and render movies for that date
+		const currentDate = new Date(dateInput.value);
+		renderList(currentMovies, currentDate);
+		updateSearchResultsCount();
+	});
+	
 	dateInput.onchange = () => {
 		// Just change the date - no need to fetch new data
 		const newDate = new Date(dateInput.value);
@@ -303,6 +493,7 @@ async function init() {
 			dateLabel.textContent = labelForDate(newDate);
 			hiddenTitles = new Set();
 			renderList(currentMovies, newDate);
+			updateSearchResultsCount();
 			
 			// Fade back in
 			moviesContainer.classList.remove('fade-out');
