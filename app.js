@@ -22,6 +22,140 @@ function labelForDate(date) {
 	return cmp.toLocaleDateString('en-GB', { weekday: 'long' });
 }
 
+// Mobile keyboard handling utilities
+function isMobileDevice() {
+	return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+function handleMobileKeyboard() {
+	if (!isMobileDevice()) return;
+	
+	// Ensure search input stays visible on mobile
+	const searchInput = document.getElementById('searchInput');
+	const searchControls = document.getElementById('searchControls');
+	
+	if (searchInput && searchControls && !searchControls.classList.contains('hidden')) {
+		// On mobile, ensure the search input is visible when keyboard appears
+		setTimeout(() => {
+			searchInput.scrollIntoView({ 
+				behavior: 'smooth', 
+				block: 'center',
+				inline: 'nearest'
+			});
+		}, 100);
+	}
+}
+
+function ensureSearchVisibility() {
+	if (!isMobileDevice()) return;
+	
+	const searchInput = document.getElementById('searchInput');
+	const searchControls = document.getElementById('searchControls');
+	
+	if (searchInput && searchControls && !searchControls.classList.contains('hidden')) {
+		// Ensure search controls are visible and accessible
+		searchControls.style.position = 'relative';
+		searchControls.style.zIndex = '1001';
+		
+		// Scroll to keep search input visible
+		setTimeout(() => {
+			const stickyContainer = document.querySelector('.sticky-date-container');
+			if (stickyContainer) {
+				stickyContainer.scrollIntoView({ 
+					behavior: 'smooth', 
+					block: 'end',
+					inline: 'nearest'
+				});
+			}
+		}, 150);
+	}
+}
+
+// Loading state management
+function showLoading() {
+	const loadingOverlay = document.getElementById('loadingOverlay');
+	if (loadingOverlay) {
+		loadingOverlay.classList.remove('hidden');
+	}
+	
+	// Disable all interactive elements
+	disableInteractions();
+}
+
+function hideLoading() {
+	const loadingOverlay = document.getElementById('loadingOverlay');
+	if (loadingOverlay) {
+		loadingOverlay.classList.add('hidden');
+	}
+	
+	// Re-enable all interactive elements
+	enableInteractions();
+}
+
+function disableInteractions() {
+	// Disable date picker
+	const dateInput = document.getElementById('datePicker');
+	if (dateInput) {
+		dateInput.disabled = true;
+	}
+	
+	// Disable navigation buttons
+	const prevDateBtn = document.getElementById('prevDateBtn');
+	const nextDateBtn = document.getElementById('nextDateBtn');
+	if (prevDateBtn) prevDateBtn.disabled = true;
+	if (nextDateBtn) nextDateBtn.disabled = true;
+	
+	// Disable search toggle
+	const searchToggleBtn = document.getElementById('searchToggleBtn');
+	if (searchToggleBtn) {
+		searchToggleBtn.disabled = true;
+	}
+	
+	// Disable search input if visible
+	const searchInput = document.getElementById('searchInput');
+	if (searchInput) {
+		searchInput.disabled = true;
+	}
+	
+	// Disable clear search button if visible
+	const clearSearchBtn = document.getElementById('clearSearchBtn');
+	if (clearSearchBtn) {
+		clearSearchBtn.disabled = true;
+	}
+}
+
+function enableInteractions() {
+	// Re-enable date picker
+	const dateInput = document.getElementById('datePicker');
+	if (dateInput) {
+		dateInput.disabled = false;
+	}
+	
+	// Re-enable navigation buttons
+	const prevDateBtn = document.getElementById('prevDateBtn');
+	const nextDateBtn = document.getElementById('nextDateBtn');
+	if (prevDateBtn) prevDateBtn.disabled = false;
+	if (nextDateBtn) nextDateBtn.disabled = false;
+	
+	// Re-enable search toggle
+	const searchToggleBtn = document.getElementById('searchToggleBtn');
+	if (searchToggleBtn) {
+		searchToggleBtn.disabled = false;
+	}
+	
+	// Re-enable search input if visible
+	const searchInput = document.getElementById('searchInput');
+	if (searchInput) {
+		searchInput.disabled = false;
+	}
+	
+	// Re-enable clear search button if visible
+	const clearSearchBtn = document.getElementById('clearSearchBtn');
+	if (clearSearchBtn) {
+		clearSearchBtn.disabled = false;
+	}
+}
+
 // ---------- Data sources ----------
 async function parseForumLike(cinemaRoot,theatreId) {
 	const url = `https://www.${cinemaRoot}.lt/xml/Schedule?area=${theatreId}&nrOfDays=31`;
@@ -368,6 +502,9 @@ function renderList(movies, selectedDate = null) {
 }
 
 async function init() {
+	// Show loading state immediately
+	showLoading();
+	
 	const dateInput = document.getElementById('datePicker');
 	const searchInput = document.getElementById('searchInput');
 	const clearSearchBtn = document.getElementById('clearSearchBtn');
@@ -381,12 +518,40 @@ async function init() {
 	dateLabel.textContent = labelForDate(new Date(dateInput.value));
 	const selectedDate = new Date(dateInput.value);
 	hiddenTitles = new Set();
-	currentMovies = await getAllMovies();
-	renderList(currentMovies, selectedDate);
+	
+	try {
+		// Fetch movies data
+		currentMovies = await getAllMovies();
+		
+		// Render the initial list
+		renderList(currentMovies, selectedDate);
+		
+		// Hide loading state after everything is ready
+		hideLoading();
+	} catch (error) {
+		console.error('Error loading movies:', error);
+		
+		// Show error message in the movies list
+		const container = document.getElementById('moviesList');
+		if (container) {
+			container.innerHTML = `
+				<div class="muted">
+					<strong>Error loading movies</strong>
+					<small>Please check your internet connection and try refreshing the page.</small>
+				</div>
+			`;
+		}
+		
+		// Hide loading state even on error
+		hideLoading();
+	}
 	
 	// Search toggle button functionality
 	searchToggleBtn.addEventListener('click', () => {
 		if (searchControls.classList.contains('hidden')) {
+			// Show loading state for search mode transition
+			showLoading();
+			
 			// Show search controls, hide normal controls
 			normalControls.classList.add('hidden');
 			searchControls.classList.remove('hidden');
@@ -401,8 +566,17 @@ async function init() {
 			// Focus search input after animation
 			setTimeout(() => {
 				searchInput.focus();
+				// Mobile-specific handling
+				if (isMobileDevice()) {
+					handleMobileKeyboard();
+				}
+				// Hide loading state after search mode is ready
+				hideLoading();
 			}, 150);
 		} else {
+			// Show loading state for normal mode transition
+			showLoading();
+			
 			// Show normal controls, hide search controls
 			searchControls.classList.add('hidden');
 			normalControls.classList.remove('hidden');
@@ -417,6 +591,9 @@ async function init() {
 			const currentDate = new Date(dateInput.value);
 			renderList(currentMovies, currentDate);
 			updateSearchResultsCount();
+			
+			// Hide loading state after normal mode is ready
+			hideLoading();
 		}
 	});
 	
@@ -436,6 +613,11 @@ async function init() {
 		searchTimeout = setTimeout(() => {
 			renderList(currentMovies, null); // Pass null to ignore date filtering during search
 			updateSearchResultsCount();
+			
+			// Mobile-specific handling to ensure search input stays visible
+			if (isMobileDevice()) {
+				ensureSearchVisibility();
+			}
 		}, 300); // Wait 300ms after user stops typing
 	});
 	
@@ -459,6 +641,59 @@ async function init() {
 		}
 	});
 	
+	// Mobile keyboard handling
+	if (isMobileDevice()) {
+		// Handle viewport changes when keyboard appears/disappears
+		let initialViewportHeight = window.innerHeight;
+		
+		window.addEventListener('resize', () => {
+			const currentViewportHeight = window.innerHeight;
+			const heightDifference = initialViewportHeight - currentViewportHeight;
+			
+			// If viewport height decreased significantly, keyboard likely appeared
+			if (heightDifference > 150) {
+				ensureSearchVisibility();
+			}
+		});
+		
+		// Handle focus events for better mobile experience
+		searchInput.addEventListener('focus', () => {
+			setTimeout(() => {
+				handleMobileKeyboard();
+			}, 100);
+		});
+		
+		// Handle blur events
+		searchInput.addEventListener('blur', () => {
+			// Small delay to allow for keyboard dismissal
+			setTimeout(() => {
+				if (isMobileDevice()) {
+					// Ensure the search interface is still accessible
+					ensureSearchVisibility();
+				}
+			}, 300);
+		});
+		
+		// Handle orientation changes
+		window.addEventListener('orientationchange', () => {
+			setTimeout(() => {
+				initialViewportHeight = window.innerHeight;
+				if (searchControls && !searchControls.classList.contains('hidden')) {
+					ensureSearchVisibility();
+				}
+			}, 500);
+		});
+		
+		// Handle visual viewport changes (better keyboard detection)
+		if ('visualViewport' in window) {
+			window.visualViewport.addEventListener('resize', () => {
+				if (searchControls && !searchControls.classList.contains('hidden')) {
+					ensureSearchVisibility();
+				}
+			});
+		}
+	}
+	
 	// Clear search button event listener
 	clearSearchBtn.addEventListener('click', () => {
 		// Show normal controls, hide search controls
@@ -481,6 +716,9 @@ async function init() {
 		// Just change the date - no need to fetch new data
 		const newDate = new Date(dateInput.value);
 		
+		// Show loading state for date change
+		showLoading();
+		
 		// Fade out current content
 		const moviesContainer = document.getElementById('moviesList');
 		const dateLabelContainer = document.querySelector('.date-label-container');
@@ -498,6 +736,9 @@ async function init() {
 			// Fade back in
 			moviesContainer.classList.remove('fade-out');
 			dateLabelContainer.classList.remove('fade-out');
+			
+			// Hide loading state after content is updated
+			hideLoading();
 		}, 300); // Match the CSS transition duration
 	};
 

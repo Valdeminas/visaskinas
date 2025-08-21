@@ -9,6 +9,60 @@ body {
     font-size: 14px; /* Base font size for mobile */
     -webkit-text-size-adjust: 100%; /* Prevent font scaling on iOS */
     -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+    /* Mobile keyboard handling */
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
+}
+
+/* Loading overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.loading-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.loading-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #007AFF;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.loading-text {
+    font-size: 16px;
+    color: #666;
+    font-weight: 500;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* Ensure proper viewport handling on mobile */
@@ -22,6 +76,7 @@ body {
     padding: 0 8px;
     max-width: 100%;
     min-height: calc(100vh - 120px); /* Account for sticky footer */
+    min-height: calc(100dvh - 120px); /* Dynamic viewport height for mobile */
 }
 
 /* Content fade transitions */
@@ -32,6 +87,9 @@ body {
     flex-direction: column;
     gap: 8px;
     padding-bottom: 20px; /* Extra space for mobile scrolling */
+    /* Mobile keyboard handling */
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 
 .movies-list-container.fade-out {
@@ -320,6 +378,12 @@ body {
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     background: rgba(255, 255, 255, 0.95);
+    /* Mobile keyboard handling */
+    position: fixed;
+    bottom: env(safe-area-inset-bottom, 0);
+    /* Ensure search stays visible on mobile */
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 .date-controls-wrapper {
@@ -357,15 +421,22 @@ body {
     user-select: none;
 }
 
-.date-nav-btn:hover {
+.date-nav-btn:hover:not(:disabled) {
     background: #f5f5f5;
     border-color: #bbb;
     transform: scale(1.05);
 }
 
-.date-nav-btn:active {
+.date-nav-btn:active:not(:disabled) {
     background: #e8e8e8;
     transform: scale(0.95);
+}
+
+.date-nav-btn:disabled {
+    background: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 /* Date input styling - mobile first */
@@ -388,15 +459,22 @@ body {
     -webkit-appearance: none;
 }
 
-.date-input:hover {
+.date-input:hover:not(:disabled) {
     border-color: #bbb;
     background: #fafafa;
 }
 
-.date-input:focus {
+.date-input:focus:not(:disabled) {
     outline: none;
     border-color: #666;
     box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.date-input:disabled {
+    background: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 /* Custom date picker icon */
@@ -447,6 +525,9 @@ body {
     transition: all 0.3s ease;
     opacity: 1;
     transform: translateY(0);
+    /* Mobile keyboard handling */
+    position: relative;
+    z-index: 1001;
 }
 
 .search-controls.hidden {
@@ -462,6 +543,8 @@ body {
     display: flex;
     align-items: center;
     width: 100%;
+    /* Mobile keyboard handling */
+    z-index: 1002;
 }
 
 .search-input-full {
@@ -480,13 +563,27 @@ body {
     transition: all 0.2s ease;
     /* Mobile-specific input improvements */
     -webkit-tap-highlight-color: transparent;
-    -webkit-appearance: none;
+    -webkit-user-select: text;
+    user-select: text;
+    /* Prevent zoom on iOS */
+    font-size: 16px;
+    /* Ensure input is accessible when keyboard appears */
+    position: relative;
+    z-index: 1003;
 }
 
-.search-input-full:focus {
+.search-input-full:focus:not(:disabled) {
     outline: none;
     border-color: #0056b3;
     box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.search-input-full:disabled {
+    background: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+    opacity: 0.6;
+    border-color: #ccc;
 }
 
 .clear-search-btn-full {
@@ -515,14 +612,21 @@ body {
     user-select: none;
 }
 
-.clear-search-btn-full:hover {
+.clear-search-btn-full:hover:not(:disabled) {
     background: #0056b3;
     transform: translateY(-50%) scale(1.1);
 }
 
-.clear-search-btn-full:active {
+.clear-search-btn-full:active:not(:disabled) {
     background: #004494;
     transform: translateY(-50%) scale(0.9);
+}
+
+.clear-search-btn-full:disabled {
+    background: #ccc;
+    color: #999;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .search-info {
@@ -555,22 +659,35 @@ body {
     user-select: none;
 }
 
-.search-toggle-btn:hover {
+.search-toggle-btn:hover:not(:disabled) {
     background: #f5f5f5;
     border-color: #bbb;
     color: #333;
     transform: scale(1.05);
 }
 
-.search-toggle-btn:active {
+.search-toggle-btn:active:not(:disabled) {
     background: #e8e8e8;
     transform: scale(0.95);
+}
+
+.search-toggle-btn:disabled {
+    background: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .search-toggle-btn.active {
     background: #007AFF;
     border-color: #007AFF;
     color: white;
+}
+
+.search-toggle-btn.active:disabled {
+    background: #ccc;
+    border-color: #ccc;
+    color: #666;
 }
 
 .search-results-count {
@@ -659,6 +776,141 @@ body {
     
     .normal-controls {
         gap: 6px;
+    }
+}
+
+/* Mobile keyboard handling */
+@media (max-height: 600px) {
+    .sticky-date-container {
+        padding: 8px 6px;
+    }
+    
+    .search-input-full {
+        height: 40px;
+        padding: 10px 14px;
+    }
+    
+    .search-info {
+        font-size: 11px;
+        gap: 4px;
+    }
+    
+    .main-container {
+        min-height: calc(100vh - 100px);
+        min-height: calc(100dvh - 100px);
+    }
+    
+    /* Ensure search stays visible on small screens */
+    .search-controls {
+        position: sticky;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-top: 1px solid #eee;
+        margin: 0 -8px;
+        padding: 8px 8px 0 8px;
+    }
+}
+
+/* Mobile landscape orientation handling */
+@media (max-height: 500px) and (orientation: landscape) {
+    .sticky-date-container {
+        padding: 6px 8px;
+    }
+    
+    .search-input-full {
+        height: 36px;
+        padding: 8px 12px;
+        font-size: 15px;
+    }
+    
+    .search-info {
+        font-size: 10px;
+    }
+    
+    .main-container {
+        min-height: calc(100vh - 80px);
+        min-height: calc(100dvh - 80px);
+    }
+    
+    /* Compact search interface for landscape */
+    .search-controls {
+        gap: 6px;
+    }
+    
+    .search-bar-full {
+        margin-bottom: 4px;
+    }
+}
+
+/* Additional mobile keyboard optimizations */
+@media (max-width: 480px) {
+    /* Ensure smooth scrolling on mobile */
+    html {
+        scroll-behavior: smooth;
+    }
+    
+    /* Better touch handling for search input */
+    .search-input-full {
+        -webkit-touch-callout: none;
+        -webkit-user-select: text;
+        user-select: text;
+        /* Prevent zoom on iOS */
+        font-size: 16px;
+    }
+    
+    /* Ensure search controls are always accessible */
+    .search-controls:not(.hidden) {
+        position: relative;
+        z-index: 1001;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+    
+    /* Mobile loading overlay adjustments */
+    .loading-spinner {
+        width: 36px;
+        height: 36px;
+        border-width: 2.5px;
+    }
+    
+    .loading-text {
+        font-size: 15px;
+    }
+}
+
+/* Loading overlay responsive adjustments */
+@media (max-height: 600px) {
+    .loading-content {
+        gap: 12px;
+    }
+    
+    .loading-spinner {
+        width: 32px;
+        height: 32px;
+        border-width: 2px;
+    }
+    
+    .loading-text {
+        font-size: 14px;
+    }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+    .loading-content {
+        gap: 8px;
+    }
+    
+    .loading-spinner {
+        width: 28px;
+        height: 28px;
+        border-width: 2px;
+    }
+    
+    .loading-text {
+        font-size: 13px;
     }
 }
 
