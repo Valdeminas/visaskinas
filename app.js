@@ -612,7 +612,7 @@ async function init() {
 			if (container) {
 				container.innerHTML = '';
 			}
-			
+	
 			// Focus search input after animation
 			setTimeout(() => {
 				searchInput.focus();

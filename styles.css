@@ -399,6 +399,12 @@ body {
 .date-controls-wrapper {
     max-width: 100%;
     margin: 0 auto;
+    /* Ensure consistent height regardless of which controls are visible */
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
 }
 
 /* Date controls row - mobile first */
@@ -519,12 +525,22 @@ body {
     justify-content: space-between;
     gap: 8px; /* Smaller gap on mobile */
     transition: all 0.3s ease;
+    /* Ensure consistent height with search controls */
+    min-height: 44px;
+    align-items: center;
 }
 
 .normal-controls.hidden {
     opacity: 0;
     transform: translateY(-10px);
     pointer-events: none;
+    /* Ensure hidden controls don't affect layout */
+    position: absolute;
+    visibility: hidden;
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
 }
 
 /* Search controls styling */
@@ -538,6 +554,34 @@ body {
     /* Mobile keyboard handling */
     position: relative;
     z-index: 1001;
+    /* Visual enhancement for search mode */
+    background: linear-gradient(to bottom, #f8f9ff, #fff);
+    padding: 8px;
+    margin: 0 -4px;
+    /* Ensure consistent height with normal controls */
+    min-height: 44px;
+    justify-content: center;
+}
+
+.search-mode-header {
+    text-align: center;
+    padding: 4px 0;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 4px;
+}
+
+.search-mode-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #007AFF;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    animation: searchModePulse 2s ease-in-out infinite;
+}
+
+@keyframes searchModePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
 
 .search-controls.hidden {
@@ -546,6 +590,12 @@ body {
     pointer-events: none;
     height: 0;
     overflow: hidden;
+    /* Ensure hidden controls don't affect layout */
+    position: absolute;
+    visibility: hidden;
+    width: 0;
+    margin: 0;
+    padding: 0;
 }
 
 .search-bar-full {
@@ -569,7 +619,7 @@ body {
     width: 100%;
     height: 44px; /* Smaller height on mobile */
     box-sizing: border-box;
-    padding-right: 44px; /* Make room for clear button */
+    padding-right: 100px; /* Make room for both clear and exit buttons with proper spacing */
     transition: all 0.2s ease;
     /* Mobile-specific input improvements */
     -webkit-tap-highlight-color: transparent;
@@ -608,7 +658,7 @@ body {
     transition: all 0.2s ease;
     border-radius: 8px;
     position: absolute;
-    right: 6px; /* Smaller margin on mobile */
+    right: 6px; /* Position at the right edge with proper margin */
     top: 50%;
     transform: translateY(-50%);
     display: flex;
@@ -616,7 +666,7 @@ body {
     justify-content: center;
     width: 32px;
     height: 32px;
-    z-index: 1;
+    z-index: 1004;
     /* Mobile-specific button improvements */
     -webkit-tap-highlight-color: transparent;
     user-select: none;
@@ -692,12 +742,17 @@ body {
     background: #007AFF;
     border-color: #007AFF;
     color: white;
+    /* Make it more obvious on mobile when in search mode */
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
 }
 
 .search-toggle-btn.active:disabled {
     background: #ccc;
     border-color: #ccc;
     color: #666;
+    transform: none;
+    box-shadow: none;
 }
 
 .search-results-count {
@@ -720,6 +775,65 @@ body {
     padding: 2px 4px;
     border-radius: 3px;
     font-weight: bold;
+}
+
+/* Search help message for mobile users */
+.search-help-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: #007AFF;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+    transition: all 0.3s ease;
+    max-width: 90vw;
+    text-align: center;
+    /* Mobile-specific improvements */
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.search-help-message.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.help-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.help-content span {
+    line-height: 1.3;
+}
+
+/* Mobile-specific help message adjustments */
+@media (max-width: 480px) {
+    .search-help-message {
+        top: 16px;
+        padding: 10px 14px;
+        font-size: 12px;
+        max-width: 85vw;
+    }
+    
+    .help-content {
+        gap: 6px;
+    }
+}
+
+@media (max-width: 360px) {
+    .search-help-message {
+        top: 12px;
+        padding: 8px 12px;
+        font-size: 11px;
+        max-width: 80vw;
+    }
 }
 
 /* Mobile-specific improvements for very small screens */
