@@ -22,6 +22,41 @@ function labelForDate(date) {
 	return cmp.toLocaleDateString('en-GB', { weekday: 'long' });
 }
 
+// Function to scroll to top of the page
+function scrollToTop() {
+	// Try to scroll the movies list container to the top
+	const moviesList = document.getElementById('moviesList');
+	if (moviesList) {
+		moviesList.scrollIntoView({
+			behavior: 'smooth',
+			block: 'start'
+		});
+	}
+	
+	// Also try to scroll the page to the top as a fallback
+	try {
+		// Try scrolling the main container or body
+		const mainContainer = document.querySelector('.main-container');
+		if (mainContainer) {
+			mainContainer.scrollTop = 0;
+		}
+		
+		// Try scrolling the document
+		if (document.documentElement.scrollTop > 0) {
+			document.documentElement.scrollTop = 0;
+		}
+		
+		if (document.body.scrollTop > 0) {
+			document.body.scrollTop = 0;
+		}
+		
+		// Use window.scrollTo as final fallback
+		window.scrollTo(0, 0);
+	} catch (error) {
+		console.log('Scroll fallback failed:', error);
+	}
+}
+
 // Mobile keyboard handling utilities
 function isMobileDevice() {
 	return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -29,6 +64,98 @@ function isMobileDevice() {
 
 function isIPhone() {
 	return /iPhone|iPod/i.test(navigator.userAgent);
+}
+
+// Enhanced visual viewport handling for iPhone keyboard fix
+function setupVisualViewportHandling() {
+	if (window.visualViewport) {
+		console.log('Visual viewport API available, setting up iPhone keyboard fix');
+		
+		let lastViewportHeight = window.visualViewport.height;
+		let keyboardVisible = false;
+		
+		function updateVh() {
+			const vh = window.visualViewport.height * 0.01+0.1;
+			document.documentElement.style.setProperty('--vh', `${vh}px`);
+			
+			// Detect keyboard visibility
+			const currentHeight = window.visualViewport.height;
+			const heightDifference = lastViewportHeight - currentHeight;
+			
+			// If viewport height decreased significantly, keyboard is likely visible
+			if (heightDifference > 150 && !keyboardVisible) {
+				keyboardVisible = true;
+				document.body.classList.add('keyboard-visible');
+				console.log('Keyboard detected as visible');
+			} else if (heightDifference < -50 && keyboardVisible) {
+				keyboardVisible = false;
+				document.body.classList.remove('keyboard-visible');
+				console.log('Keyboard detected as hidden');
+			}
+			
+			lastViewportHeight = currentHeight;
+			console.log('Viewport height updated:', currentHeight, 'vh:', vh, 'keyboard:', keyboardVisible);
+		}
+		
+		// Update on resize and scroll
+		window.visualViewport.addEventListener('resize', updateVh);
+		window.visualViewport.addEventListener('scroll', updateVh);
+		
+		// Set initial value
+		updateVh();
+		
+		// Also update on orientation change
+		window.addEventListener('orientationchange', () => {
+			setTimeout(() => {
+				lastViewportHeight = window.visualViewport.height;
+				updateVh();
+			}, 100); // Wait for orientation change to complete
+		});
+		
+		// Ensure proper viewport handling for iPhone keyboard fix
+		document.body.style.minHeight = '100vh';
+		
+		return true;
+	} else {
+		console.log('Visual viewport API not available, using fallback');
+		return false;
+	}
+}
+
+// Enhanced input focus handling for inputs covered by keyboard
+function setupInputFocusHandling() {
+	const inputs = document.querySelectorAll('input, textarea');
+	console.log('Setting up focus handling for', inputs.length, 'inputs');
+	
+	inputs.forEach((el, index) => {
+		el.addEventListener('focus', () => {
+			console.log('Input focused:', el.id || `input-${index}`);
+			
+			// For iPhone, use visual viewport if available
+			if (window.visualViewport && isIPhone()) {
+				setTimeout(() => {
+					// Ensure the input is visible in the current viewport
+					const rect = el.getBoundingClientRect();
+					const viewportHeight = window.visualViewport.height;
+					
+					if (rect.bottom > viewportHeight) {
+						el.scrollIntoView({ 
+							behavior: 'smooth', 
+							block: 'center' 
+						});
+					}
+				}, 300); // Wait for keyboard animation
+			} else {
+				// Fallback for other devices
+				setTimeout(() => {
+					el.scrollIntoView({ 
+						behavior: 'smooth', 
+						block: 'center' 
+					});
+				}, 300);
+			}
+		});
+	});
 }
 
 function handleMobileKeyboard() {
@@ -84,11 +211,17 @@ function ensureSearchVisibility() {
 	
 	const searchInput = document.getElementById('searchInput');
 	const searchControls = document.getElementById('searchControls');
+	const clearSearchBtn = document.getElementById('clearSearchBtn');
 	
 	if (searchInput && searchControls && !searchControls.classList.contains('hidden')) {
 		// Ensure search controls are visible and accessible
 		searchControls.style.position = 'relative';
 		searchControls.style.zIndex = '1001';
+		
+		// Ensure clear button is always visible in search mode
+		if (clearSearchBtn) {
+			clearSearchBtn.style.display = 'flex';
+		}
 		
 		// Scroll to keep search input visible
 		setTimeout(() => {
@@ -108,11 +241,17 @@ function ensureIPhoneSearchVisibility() {
 	// iPhone-specific search visibility handling
 	const searchInput = document.getElementById('searchInput');
 	const searchControls = document.getElementById('searchControls');
+	const clearSearchBtn = document.getElementById('clearSearchBtn');
 	
 	if (searchInput && searchControls && !searchControls.classList.contains('hidden')) {
 		// On iPhone, ensure the search interface stays accessible without page movement
 		searchControls.style.position = 'relative';
 		searchControls.style.zIndex = '1001';
+		
+		// Ensure clear button is always visible in search mode
+		if (clearSearchBtn) {
+			clearSearchBtn.style.display = 'flex';
+		}
 		
 		// Don't scroll the page on iPhone - let the viewport handle it
 		setTimeout(() => {
@@ -345,6 +484,9 @@ function renderList(movies, selectedDate = null) {
 	if (!container) return;
 	container.innerHTML = '';
 	
+	// Always scroll to top when rendering new content
+	scrollToTop();
+	
 	let filteredMovies = movies;
 	
 	// Check if we're in search mode (search interface is open)
@@ -555,6 +697,64 @@ function renderList(movies, selectedDate = null) {
 }
 
 async function init() {
+	// Setup visual viewport handling
+	if (!setupVisualViewportHandling()) {
+		// Fallback for browsers that don't support visualViewport
+		console.log('Visual viewport API not available, using fallback for iPhone keyboard fix.');
+		
+		// Fallback: Use window resize events and estimate keyboard visibility
+		let lastWindowHeight = window.innerHeight;
+		let fallbackKeyboardVisible = false;
+		
+		function fallbackUpdateVh() {
+			const currentHeight = window.innerHeight;
+			const heightDifference = lastWindowHeight - currentHeight;
+			
+			// Estimate viewport height (this is less accurate than visualViewport)
+			const estimatedVh = currentHeight * 0.01;
+			document.documentElement.style.setProperty('--vh', `${estimatedVh}px`);
+			
+			// Detect keyboard visibility based on window height changes
+			if (heightDifference > 150 && !fallbackKeyboardVisible) {
+				fallbackKeyboardVisible = true;
+				document.body.classList.add('keyboard-visible');
+				console.log('Keyboard detected as visible (fallback)');
+			} else if (heightDifference < -50 && fallbackKeyboardVisible) {
+				fallbackKeyboardVisible = false;
+				document.body.classList.remove('keyboard-visible');
+				console.log('Keyboard detected as hidden (fallback)');
+			}
+			
+			lastWindowHeight = currentHeight;
+			console.log('Fallback viewport height updated:', currentHeight, 'vh:', estimatedVh);
+		}
+		
+		// Listen for window resize events
+		window.addEventListener('resize', fallbackUpdateVh);
+		window.addEventListener('orientationchange', () => {
+			setTimeout(fallbackUpdateVh, 100);
+		});
+		
+		// Set initial value
+		fallbackUpdateVh();
+		
+		// Ensure proper viewport handling in fallback mode
+		document.body.style.minHeight = '100vh';
+	}
+	
+	// Setup input focus handling
+	setupInputFocusHandling();
+	
+	// Function to ensure clear button is always visible in search mode
+	function ensureClearButtonVisibility() {
+		const searchControls = document.getElementById('searchControls');
+		const clearSearchBtn = document.getElementById('clearSearchBtn');
+		
+		if (searchControls && clearSearchBtn && !searchControls.classList.contains('hidden')) {
+			clearSearchBtn.style.display = 'flex';
+		}
+	}
+
 	// Show loading state immediately
 	showLoading();
 	
@@ -602,40 +802,51 @@ async function init() {
 	// Search toggle button functionality
 	searchToggleBtn.addEventListener('click', () => {
 		if (searchControls.classList.contains('hidden')) {
-			// Show search controls, hide normal controls
+			// Show search controls, hide normal controls with smooth transition
 			normalControls.classList.add('hidden');
-			searchControls.classList.remove('hidden');
-			searchToggleBtn.classList.add('active');
 			
-			// Clear the movie list immediately when entering search mode
-			const container = document.getElementById('moviesList');
-			if (container) {
-				container.innerHTML = '';
-			}
-	
-			// Focus search input after animation
+			// Wait for normal controls to fade out, then show search controls
 			setTimeout(() => {
-				searchInput.focus();
-				// Mobile-specific handling
-				if (isMobileDevice()) {
-					handleMobileKeyboard();
+				searchControls.classList.remove('hidden');
+				searchToggleBtn.classList.add('active');
+				
+				// Clear the movie list immediately when entering search mode
+				const container = document.getElementById('moviesList');
+				if (container) {
+					container.innerHTML = '';
 				}
-			}, 150);
+				
+				// Ensure clear button is visible when entering search mode
+				clearSearchBtn.style.display = 'flex';
+				
+				// Focus search input after animation
+				setTimeout(() => {
+					searchInput.focus();
+					// Mobile-specific handling
+					if (isMobileDevice()) {
+						handleMobileKeyboard();
+					}
+				}, 150);
+			}, 300); // Wait for fade out to complete
 		} else {
-			// Show normal controls, hide search controls
+			// Show normal controls, hide search controls with smooth transition
 			searchControls.classList.add('hidden');
-			normalControls.classList.remove('hidden');
-			searchToggleBtn.classList.remove('active');
 			
-			// Clear search
-			searchInput.value = '';
-			searchQuery = '';
-			hiddenTitles = new Set();
-			
-			// Get current date from date picker and render movies for that date
-			const currentDate = new Date(dateInput.value);
-			renderList(currentMovies, currentDate);
-			updateSearchResultsCount();
+			// Wait for search controls to fade out, then show normal controls
+			setTimeout(() => {
+				normalControls.classList.remove('hidden');
+				searchToggleBtn.classList.remove('active');
+				
+				// Clear search
+				searchInput.value = '';
+				searchQuery = '';
+				hiddenTitles = new Set();
+				
+				// Get current date from date picker and render movies for that date
+				const currentDate = new Date(dateInput.value);
+				renderList(currentMovies, currentDate);
+				updateSearchResultsCount();
+			}, 300); // Wait for fade out to complete
 		}
 	});
 	
@@ -645,41 +856,45 @@ async function init() {
 		searchQuery = e.target.value;
 		hiddenTitles = new Set(); // Reset hidden titles when searching
 		
-		// Show/hide clear button
-		clearSearchBtn.style.display = searchQuery ? 'flex' : 'none';
+		// Clear button should always be visible when in search mode
+		// No need to show/hide it based on input content
 		
 		// Clear previous timeout
 		clearTimeout(searchTimeout);
 		
-		// Debounce the search to avoid excessive re-rendering
-		searchTimeout = setTimeout(() => {
-			renderList(currentMovies, null); // Pass null to ignore date filtering during search
-			updateSearchResultsCount();
-			
-			// Mobile-specific handling to ensure search input stays visible
-			if (isMobileDevice()) {
-				ensureSearchVisibility();
-			}
-		}, 300); // Wait 300ms after user stops typing
+			// Debounce the search to avoid excessive re-rendering
+	searchTimeout = setTimeout(() => {
+		renderList(currentMovies, null); // Pass null to ignore date filtering during search
+		updateSearchResultsCount();
+		
+		// Mobile-specific handling to ensure search input stays visible
+		if (isMobileDevice()) {
+			ensureSearchVisibility();
+		}
+	}, 300); // Wait 300ms after user stops typing
 	});
 	
 	// Search input keyboard shortcuts
 	searchInput.addEventListener('keydown', (e) => {
 		if (e.key === 'Escape') {
-			// Show normal controls, hide search controls
+			// Show normal controls, hide search controls with smooth transition
 			searchControls.classList.add('hidden');
-			normalControls.classList.remove('hidden');
-			searchToggleBtn.classList.remove('active');
 			
-			// Clear search
-			searchInput.value = '';
-			searchQuery = '';
-			hiddenTitles = new Set();
-			
-			// Get current date from date picker and render movies for that date
-			const currentDate = new Date(dateInput.value);
-			renderList(currentMovies, currentDate);
-			updateSearchResultsCount();
+			// Wait for search controls to fade out, then show normal controls
+			setTimeout(() => {
+				normalControls.classList.remove('hidden');
+				searchToggleBtn.classList.remove('active');
+				
+				// Clear search
+				searchInput.value = '';
+				searchQuery = '';
+				hiddenTitles = new Set();
+				
+				// Get current date from date picker and render movies for that date
+				const currentDate = new Date(dateInput.value);
+				renderList(currentMovies, currentDate);
+				updateSearchResultsCount();
+			}, 300); // Wait for fade out to complete
 		}
 	});
 	
@@ -705,6 +920,9 @@ async function init() {
 		
 		// Handle focus events for better mobile experience
 		searchInput.addEventListener('focus', () => {
+			// Ensure clear button is visible when search input is focused
+			clearSearchBtn.style.display = 'flex';
+			
 			setTimeout(() => {
 				if (isIPhone()) {
 					handleIPhoneKeyboard();
@@ -755,24 +973,52 @@ async function init() {
 				}
 			});
 		}
+		
+		// Ensure clear button visibility on orientation changes and viewport changes
+		window.addEventListener('orientationchange', () => {
+			setTimeout(() => {
+				ensureClearButtonVisibility();
+			}, 500);
+		});
+		
+		if ('visualViewport' in window) {
+			window.visualViewport.addEventListener('resize', () => {
+				setTimeout(() => {
+					ensureClearButtonVisibility();
+				}, 100);
+			});
+		}
+		
+		// Ensure proper viewport handling for iPhone keyboard fix
+		document.body.style.minHeight = '100vh';
+		
+		// Ensure main container has proper spacing
+		const mainContainer = document.querySelector('.main-container');
+		if (mainContainer) {
+			mainContainer.style.paddingBottom = '100px';
+		}
 	}
 	
 	// Clear search button event listener
 	clearSearchBtn.addEventListener('click', () => {
-		// Show normal controls, hide search controls
+		// Show normal controls, hide search controls with smooth transition
 		searchControls.classList.add('hidden');
-		normalControls.classList.remove('hidden');
-		searchToggleBtn.classList.remove('active');
 		
-		// Clear search
-		searchInput.value = '';
-		searchQuery = '';
-		hiddenTitles = new Set();
-		
-		// Get current date from date picker and render movies for that date
-		const currentDate = new Date(dateInput.value);
-		renderList(currentMovies, currentDate);
-		updateSearchResultsCount();
+		// Wait for search controls to fade out, then show normal controls
+		setTimeout(() => {
+			normalControls.classList.remove('hidden');
+			searchToggleBtn.classList.remove('active');
+			
+			// Clear search
+			searchInput.value = '';
+			searchQuery = '';
+			hiddenTitles = new Set();
+			
+			// Get current date from date picker and render movies for that date
+			const currentDate = new Date(dateInput.value);
+			renderList(currentMovies, currentDate);
+			updateSearchResultsCount();
+		}, 300); // Wait for fade out to complete
 	});
 	
 	dateInput.onchange = () => {

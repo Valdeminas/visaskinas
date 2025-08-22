@@ -1,4 +1,9 @@
 /* Mobile-first base styles */
+:root {
+    /* iPhone keyboard fix - fallback viewport height */
+    --vh: 1vh;
+}
+
 body { 
     margin: 0; 
     font-family: system-ui, sans-serif; 
@@ -9,13 +14,18 @@ body {
     font-size: 14px; /* Base font size for mobile */
     -webkit-text-size-adjust: 100%; /* Prevent font scaling on iOS */
     -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
-    /* iPhone keyboard handling - prevent page movement */
-    position: fixed;
+    /* iPhone keyboard handling - use relative positioning for scrolling */
+    position: relative;
     width: 100%;
-    height: 100%;
-    height: 100dvh; /* Dynamic viewport height for mobile */
-    overflow-y: auto;
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100); /* Use custom viewport height for iPhone keyboard fix */
+    overflow: hidden; /* Prevent body from scrolling */
     -webkit-overflow-scrolling: touch;
+    /* Ensure scrolling works properly */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    /* Prevent horizontal scroll */
+    box-sizing: border-box;
 }
 
 /* Loading overlay */
@@ -79,11 +89,18 @@ body {
     margin: 12px;
     padding: 0 8px;
     max-width: 100%;
-    min-height: calc(100vh - 120px); /* Account for sticky footer */
-    min-height: calc(100dvh - 120px); /* Dynamic viewport height for mobile */
+    height: calc(calc(var(--vh, 1vh) * 100) - 120px); /* Use custom viewport height for iPhone keyboard fix */
     /* iPhone keyboard handling */
     position: relative;
     z-index: 1;
+    /* Ensure scrolling works properly */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Add bottom padding to prevent content from being hidden behind sticky element */
+    padding-bottom: 80px;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 /* Content fade transitions */
@@ -97,6 +114,11 @@ body {
     /* Mobile keyboard handling */
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+    /* Ensure scrolling works properly */
+    overflow-y: visible;
+    position: relative;
+    /* Ensure container fills available height */
+    min-height: calc(calc(var(--vh, 1vh) * 100) - 200px);
 }
 
 .movies-list-container.fade-out {
@@ -372,7 +394,7 @@ body {
 
 /* Sticky date picker container - mobile first */
 .sticky-date-container {
-    position: fixed;
+    position: sticky;
     bottom: 0;
     left: 0;
     right: 0;
@@ -390,10 +412,13 @@ body {
     /* Ensure search stays visible on mobile */
     transform: translateZ(0);
     will-change: transform;
-    /* Prevent page movement when keyboard appears */
-    position: fixed;
-    bottom: 0;
-    bottom: env(safe-area-inset-bottom, 0);
+    /* iPhone keyboard handling - ensure proper positioning */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    /* Prevent horizontal scroll and ensure proper positioning */
+    overflow-x: hidden;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 .date-controls-wrapper {
@@ -405,6 +430,10 @@ body {
     align-items: center;
     justify-content: center;
     position: relative;
+    /* Ensure proper positioning of controls */
+    overflow: hidden;
+    /* Ensure smooth transitions between control states */
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* Date controls row - mobile first */
@@ -524,23 +553,44 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 8px; /* Smaller gap on mobile */
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
     /* Ensure consistent height with search controls */
     min-height: 44px;
     align-items: center;
+    /* Smooth fade transitions */
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    overflow: hidden;
+    /* No default animation - only animate when becoming visible */
+    /* Ensure it takes full width when visible */
+    position: relative;
+    width: 100%;
+    /* Force full width expansion */
+    flex: 1;
+    min-width: 100%;
+    /* Ensure proper expansion after being hidden */
+    max-width: 100%;
 }
 
 .normal-controls.hidden {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-10px) scale(0.95);
     pointer-events: none;
-    /* Ensure hidden controls don't affect layout */
+    /* Use absolute positioning to remove from layout flow */
     position: absolute;
     visibility: hidden;
-    width: 0;
     height: 0;
+    overflow: hidden;
     margin: 0;
     padding: 0;
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    /* Ensure it doesn't affect layout */
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: -1;
+    /* Ensure smooth transition back to normal positioning */
+    width: 0;
 }
 
 /* Search controls styling */
@@ -548,19 +598,43 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     /* Mobile keyboard handling */
     position: relative;
     z-index: 1001;
     /* Visual enhancement for search mode */
     background: linear-gradient(to bottom, #f8f9ff, #fff);
-    padding: 8px;
-    margin: 0 -4px;
+    margin: 0;
     /* Ensure consistent height with normal controls */
     min-height: 44px;
     justify-content: center;
+    /* iPhone keyboard handling - ensure proper positioning */
+    transform: translateZ(0);
+    will-change: transform;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
+    /* Smooth fade transitions */
+    overflow: hidden;
+    /* No default animation - only animate when becoming visible */
+    /* Ensure it takes full width when visible */
+    position: relative;
+}
+
+/* Ensure normal controls expand properly when becoming visible */
+.normal-controls:not(.hidden) {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1;
+    animation: slideInUp 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Ensure search controls animate properly when becoming visible */
+.search-controls:not(.hidden) {
+    animation: slideInUp 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .search-mode-header {
@@ -584,18 +658,51 @@ body {
     50% { opacity: 0.7; }
 }
 
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+        width: 0;
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        width: 100%;
+    }
+}
+
+@keyframes expandControls {
+    from {
+        width: 0;
+        max-width: 0;
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+    }
+    to {
+        width: 100%;
+        max-width: 100%;
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
 .search-controls.hidden {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(10px) scale(0.95);
     pointer-events: none;
     height: 0;
     overflow: hidden;
-    /* Ensure hidden controls don't affect layout */
+    /* Use absolute positioning to remove from layout flow */
     position: absolute;
     visibility: hidden;
-    width: 0;
     margin: 0;
     padding: 0;
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    /* Ensure it doesn't affect layout */
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: -1;
 }
 
 .search-bar-full {
@@ -605,6 +712,9 @@ body {
     width: 100%;
     /* Mobile keyboard handling */
     z-index: 1002;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 .search-input-full {
@@ -636,6 +746,9 @@ body {
     outline: none;
     border-color: #0056b3;
     box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+    /* iPhone keyboard handling - ensure input stays visible */
+    position: relative;
+    z-index: 1003;
 }
 
 .search-input-full:disabled {
@@ -761,6 +874,8 @@ body {
     text-align: right;
     font-style: italic;
 }
+
+
 
 .search-note {
     font-size: 10px; /* Smaller on mobile */
@@ -920,20 +1035,24 @@ body {
     }
     
     .main-container {
-        min-height: calc(100vh - 100px);
-        min-height: calc(100dvh - 100px);
+        min-height: calc(calc(var(--vh, 1vh) * 100) - 100px); /* Use custom viewport height for iPhone keyboard fix */
+        /* Ensure scrolling works properly */
+        overflow-y: visible;
+        position: relative;
     }
     
     /* Ensure search stays visible on small screens */
     .search-controls {
-        position: sticky;
-        bottom: 0;
         background: rgba(255, 255, 255, 0.98);
         backdrop-filter: blur(15px);
         -webkit-backdrop-filter: blur(15px);
         border-top: 1px solid #eee;
-        margin: 0 -8px;
+        margin: 0;
         padding: 8px 8px 0 8px;
+        /* Prevent horizontal scroll */
+        overflow-x: hidden;
+        width: 100%;
+        box-sizing: border-box;
     }
 }
 
@@ -954,8 +1073,10 @@ body {
     }
     
     .main-container {
-        min-height: calc(100vh - 80px);
-        min-height: calc(100dvh - 80px);
+        min-height: calc(calc(var(--vh, 1vh) * 100) - 80px); /* Use custom viewport height for iPhone keyboard fix */
+        /* Ensure scrolling works properly */
+        overflow-y: visible;
+        position: relative;
     }
     
     /* Compact search interface for landscape */
@@ -986,7 +1107,6 @@ body {
     
     /* Ensure search controls are always accessible */
     .search-controls:not(.hidden) {
-        position: relative;
         z-index: 1001;
         background: rgba(255, 255, 255, 0.98);
         backdrop-filter: blur(10px);
@@ -1322,27 +1442,28 @@ body {
 /* iPhone keyboard handling */
 @media screen and (max-height: 600px) {
     body {
-        /* Prevent page movement when keyboard appears */
-        position: fixed;
+        /* Use relative positioning for scrolling */
+        position: relative;
         width: 100%;
-        height: 100vh;
-        height: 100dvh;
-        overflow-y: auto;
+        height: calc(var(--vh, 1vh) * 100); /* Use custom viewport height for iPhone keyboard fix */
+        overflow: hidden;
         -webkit-overflow-scrolling: touch;
     }
     
     .main-container {
         /* Adjust for iPhone keyboard */
-        min-height: calc(100vh - 120px);
-        min-height: calc(100dvh - 120px);
+        height: calc(calc(var(--vh, 1vh) * 100) - 120px); /* Use custom viewport height for iPhone keyboard fix */
         padding-bottom: 80px; /* Extra space for keyboard */
+        /* Ensure scrolling works properly */
+        overflow-y: auto;
+        position: relative;
     }
     
     .sticky-date-container {
         /* Ensure it stays above keyboard */
         bottom: 0;
         bottom: env(safe-area-inset-bottom, 0);
-        position: fixed;
+        position: sticky;
         z-index: 1000;
     }
 }
@@ -1350,21 +1471,23 @@ body {
 /* iPhone landscape keyboard handling */
 @media screen and (max-height: 500px) and (orientation: landscape) {
     body {
-        position: fixed;
+        position: relative;
         width: 100%;
-        height: 100vh;
-        height: 100dvh;
-        overflow-y: auto;
+        height: calc(var(--vh, 1vh) * 100); /* Use custom viewport height for iPhone keyboard fix */
+        overflow: hidden;
     }
     
     .main-container {
-        min-height: calc(100vh - 80px);
-        min-height: calc(100dvh - 80px);
+        height: calc(calc(var(--vh, 1vh) * 100) - 80px); /* Use custom viewport height for iPhone keyboard fix */
         padding-bottom: 60px;
+        /* Ensure scrolling works properly */
+        overflow-y: auto;
+        position: relative;
     }
     
     .sticky-date-container {
         padding: 6px 8px;
+        position: sticky;
     }
 }
 
@@ -1372,11 +1495,10 @@ body {
 @supports (-webkit-touch-callout: none) {
     body {
         /* iPhone-specific viewport handling */
-        position: fixed;
+        position: relative;
         width: 100%;
-        height: 100vh;
-        height: 100dvh;
-        overflow-y: auto;
+        height: calc(var(--vh, 1vh) * 100); /* Use custom viewport height for iPhone keyboard fix */
+        overflow: hidden;
         -webkit-overflow-scrolling: touch;
         /* Prevent page movement when keyboard appears */
         -webkit-transform: translateZ(0);
@@ -1385,14 +1507,16 @@ body {
     
     .main-container {
         /* Ensure content fits above keyboard */
-        min-height: calc(100vh - 120px);
-        min-height: calc(100dvh - 120px);
+        height: calc(calc(var(--vh, 1vh) * 100) - 120px); /* Use custom viewport height for iPhone keyboard fix */
         padding-bottom: 100px; /* Extra space for iPhone keyboard */
+        /* Ensure scrolling works properly */
+        overflow-y: auto;
+        position: relative;
     }
     
     .sticky-date-container {
         /* Ensure it stays above keyboard */
-        position: fixed;
+        position: sticky;
         bottom: 0;
         bottom: env(safe-area-inset-bottom, 0);
         z-index: 1000;
@@ -1410,5 +1534,140 @@ body {
     .main-container {
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        /* Ensure scrolling works properly */
+        position: relative;
+    }
+}
+
+/* Body keyboard visible state handling */
+body.keyboard-visible {
+    /* Prevent body scroll when keyboard is visible */
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    height: calc(var(--vh, 1vh) * 100);
+}
+
+body.keyboard-visible .main-container {
+    /* Allow scrolling within main container when keyboard is visible */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: calc(var(--vh, 1vh) * 100);
+    /* Ensure scrolling works properly */
+    position: relative;
+}
+
+body.keyboard-visible .sticky-date-container {
+    /* Ensure sticky container stays visible above keyboard */
+    position: sticky;
+    bottom: 0;
+    bottom: env(safe-area-inset-bottom, 0);
+    z-index: 1000;
+}
+
+/* Smooth transitions for keyboard visibility changes */
+body {
+    transition: height 0.3s ease-out;
+}
+
+.main-container {
+    transition: min-height 0.3s ease-out, padding-bottom 0.3s ease-out;
+}
+
+.sticky-date-container {
+    transition: all 0.3s ease-out;
+}
+
+.search-controls {
+    transition: all 0.3s ease-out;
+}
+
+/* Additional iPhone keyboard optimizations */
+@media screen and (max-height: 600px) {
+    /* When keyboard is visible, ensure search controls are properly positioned */
+    .search-controls:not(.hidden) {
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-top: 1px solid #eee;
+        margin: 0;
+        padding: 8px 8px 0 8px;
+        z-index: 1001;
+        /* Prevent horizontal scroll */
+        overflow-x: hidden;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Ensure search input is always accessible */
+    .search-input-full {
+        position: relative;
+        z-index: 1003;
+    }
+    
+    /* Adjust main container when keyboard is visible */
+    .main-container {
+        padding-bottom: 120px; /* Extra space for keyboard */
+        /* Ensure scrolling works properly */
+        overflow-y: visible;
+        position: relative;
+    }
+}
+
+/* Search input focus state when keyboard is visible */
+.search-input-full:focus {
+    /* Ensure input stays visible above keyboard */
+    position: relative;
+    z-index: 1003;
+    transform: translateZ(0);
+}
+
+/* When keyboard is visible and search input is focused */
+body.keyboard-visible .search-input-full:focus {
+    /* Additional styling for focused search input with keyboard */
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+    border-color: #007AFF;
+}
+
+/* Ensure search controls stay visible when keyboard appears */
+body.keyboard-visible .search-controls:not(.hidden) {
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-top: 1px solid #eee;
+    margin: 0;
+    padding: 8px 8px 0 8px;
+    z-index: 1001;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Ensure main container scrolling works when keyboard is visible */
+body.keyboard-visible .main-container {
+    overflow-y: visible;
+    position: relative;
+}
+
+/* iPhone landscape keyboard handling */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    /* Compact layout for landscape with keyboard */
+    .search-controls:not(.hidden) {
+        padding: 6px 8px 0 8px;
+        gap: 6px;
+    }
+    
+    .search-input-full {
+        height: 36px;
+        padding: 8px 12px;
+        font-size: 15px;
+    }
+    
+    .main-container {
+        padding-bottom: 80px;
+        /* Ensure scrolling works properly */
+        overflow-y: visible;
+        position: relative;
     }
 }

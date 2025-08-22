@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>iPhone Keyboard Fix Test</title>
+    <style>
+        :root {
+            --vh: 1vh;
+        }
+        
+        body {
+            margin: 0;
+            font-family: system-ui, sans-serif;
+            background: #f6f6f8;
+            color: #111;
+            position: fixed;
+            width: 100%;
+            height: calc(var(--vh, 1vh) * 100);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            transition: height 0.3s ease-out;
+        }
+        
+        .container {
+            padding: 20px;
+            min-height: calc(calc(var(--vh, 1vh) * 100) - 120px);
+            transition: min-height 0.3s ease-out;
+        }
+        
+        .sticky-bottom {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border-top: 1px solid #eee;
+            padding: 20px;
+            z-index: 1000;
+            transition: all 0.3s ease-out;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #007AFF;
+            border-radius: 8px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1003;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+            position: relative;
+            z-index: 1003;
+            transform: translateZ(0);
+        }
+        
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .status {
+            background: #f3e5f5;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        body.keyboard-visible {
+            overflow: hidden;
+        }
+        
+        body.keyboard-visible .container {
+            max-height: calc(var(--vh, 1vh) * 100);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        body.keyboard-visible .sticky-bottom {
+            position: fixed;
+            bottom: 0;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>iPhone Keyboard Fix Test</h1>
+        
+        <div class="info">
+            <strong>Test Instructions:</strong>
+            <ol>
+                <li>Open this page on an iPhone with Chrome or Safari</li>
+                <li>Tap the search input below</li>
+                <li>Observe that the page resizes properly when the keyboard appears</li>
+                <li>The sticky bottom element should stay visible above the keyboard</li>
+            </ol>
+        </div>
+        
+        <div class="status" id="status">
+            Initializing...
+        </div>
+        
+        <p>This is a test page to verify that the iPhone keyboard fix is working correctly. The page should resize smoothly when the keyboard appears and disappears.</p>
+        
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+        
+        <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+        
+        <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
+        
+        <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
+        
+        <p>Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.</p>
+    </div>
+    
+    <div class="sticky-bottom">
+        <input type="text" class="search-input" placeholder="Tap here to test keyboard behavior..." id="testInput">
+        <div class="status" id="inputStatus">
+            Input not focused
+        </div>
+    </div>
+    
+    <script>
+        // iPhone keyboard fix - use visual viewport for proper resizing
+        function setupVisualViewportHandling() {
+            if (window.visualViewport) {
+                console.log('Visual viewport API available, setting up iPhone keyboard fix');
+                
+                let lastViewportHeight = window.visualViewport.height;
+                let keyboardVisible = false;
+                
+                function updateVh() {
+                    const vh = window.visualViewport.height * 0.01;
+                    document.documentElement.style.setProperty('--vh', `${vh}px`);
+                    
+                    // Detect keyboard visibility
+                    const currentHeight = window.visualViewport.height;
+                    const heightDifference = lastViewportHeight - currentHeight;
+                    
+                    // If viewport height decreased significantly, keyboard is likely visible
+                    if (heightDifference > 150 && !keyboardVisible) {
+                        keyboardVisible = true;
+                        document.body.classList.add('keyboard-visible');
+                        console.log('Keyboard detected as visible');
+                        updateStatus('Keyboard visible - Viewport height: ' + currentHeight + 'px');
+                    } else if (heightDifference < -50 && keyboardVisible) {
+                        keyboardVisible = false;
+                        document.body.classList.remove('keyboard-visible');
+                        console.log('Keyboard detected as hidden');
+                        updateStatus('Keyboard hidden - Viewport height: ' + currentHeight + 'px');
+                    }
+                    
+                    lastViewportHeight = currentHeight;
+                    console.log('Viewport height updated:', currentHeight, 'vh:', vh, 'keyboard:', keyboardVisible);
+                }
+                
+                // Update on resize and scroll
+                window.visualViewport.addEventListener('resize', updateVh);
+                window.visualViewport.addEventListener('scroll', updateVh);
+                
+                // Set initial value
+                updateVh();
+                
+                // Also update on orientation change
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(() => {
+                        lastViewportHeight = window.visualViewport.height;
+                        updateVh();
+                    }, 100);
+                });
+                
+                return true;
+            } else {
+                console.log('Visual viewport API not available, using fallback');
+                return false;
+            }
+        }
+        
+        // Fallback for browsers that don't support visualViewport
+        function setupFallback() {
+            console.log('Setting up fallback for iPhone keyboard fix');
+            
+            let lastWindowHeight = window.innerHeight;
+            let fallbackKeyboardVisible = false;
+            
+            function fallbackUpdateVh() {
+                const currentHeight = window.innerHeight;
+                const heightDifference = lastWindowHeight - currentHeight;
+                
+                // Estimate viewport height
+                const estimatedVh = currentHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${estimatedVh}px`);
+                
+                // Detect keyboard visibility based on window height changes
+                if (heightDifference > 150 && !fallbackKeyboardVisible) {
+                    fallbackKeyboardVisible = true;
+                    document.body.classList.add('keyboard-visible');
+                    console.log('Keyboard detected as visible (fallback)');
+                    updateStatus('Keyboard visible (fallback) - Window height: ' + currentHeight + 'px');
+                } else if (heightDifference < -50 && fallbackKeyboardVisible) {
+                    fallbackKeyboardVisible = false;
+                    document.body.classList.remove('keyboard-visible');
+                    console.log('Keyboard detected as hidden (fallback)');
+                    updateStatus('Keyboard hidden (fallback) - Window height: ' + currentHeight + 'px');
+                }
+                
+                lastWindowHeight = currentHeight;
+                console.log('Fallback viewport height updated:', currentHeight, 'vh:', estimatedVh);
+            }
+            
+            // Listen for window resize events
+            window.addEventListener('resize', fallbackUpdateVh);
+            window.addEventListener('orientationchange', () => {
+                setTimeout(fallbackUpdateVh, 100);
+            });
+            
+            // Set initial value
+            fallbackUpdateVh();
+        }
+        
+        function updateStatus(message) {
+            const statusEl = document.getElementById('status');
+            if (statusEl) {
+                statusEl.textContent = message;
+            }
+        }
+        
+        function updateInputStatus(message) {
+            const inputStatusEl = document.getElementById('inputStatus');
+            if (inputStatusEl) {
+                inputStatusEl.textContent = message;
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStatus('Page loaded, setting up keyboard detection...');
+            
+            if (!setupVisualViewportHandling()) {
+                setupFallback();
+            }
+            
+            // Test input focus handling
+            const testInput = document.getElementById('testInput');
+            if (testInput) {
+                testInput.addEventListener('focus', () => {
+                    updateInputStatus('Input focused - keyboard should appear');
+                });
+                
+                testInput.addEventListener('blur', () => {
+                    updateInputStatus('Input blurred - keyboard should disappear');
+                });
+            }
+            
+            updateStatus('Ready for testing! Tap the input below to test keyboard behavior.');
+        });
+    </script>
+</body>
+</html>
